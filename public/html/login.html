@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <section id="nullSession" class="logged-out">
+        <p>Username: <input type="text" id="username"></p>
+        <p>Password: <input type="text" id="password"></p>
+    
+        <button id="login" onclick="onLogin_Google()">Login with Google</button>
+      </section>
+  
+      <section id = "inSession" style="display: none;" class="logged-in">
+        <p id="H1"></p>
+        <button id="logout" onclick="onLogout_Google()" >Logout</button>
+      </section>
+      
+    
+      <a href="page2.html" id="next" class="button-style">Next</a>
+      <style>
+        .button-style {
+          display: inline-block;
+          padding: 10px 15px;
+          background-color: #4285f4;
+          color: white;
+          text-decoration: none;
+          border-radius: 4px;
+          cursor: pointer;
+          font-family: Arial, sans-serif;
+          font-size: 14px;
+        }
+        .button-style:hover {
+          background-color: #3367d6;
+        }
+      </style>
+  </head>
+</html>

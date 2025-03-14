@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../Cleo-Supa"
+		}
+	],
+	"settings": {
+		"liveServer.settings.multiRootWorkspaceName": "CleO"
+	}
+}

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Welcome to Cleo</title>
+
+    <!-- update the version number as needed -->
+    <script defer src="/__/firebase/11.4.0/firebase-app-compat.js"></script>
+    <!-- include only the Firebase features as you need -->
+    <script defer src="/__/firebase/11.4.0/firebase-auth-compat.js"></script>
+    <script defer src="/__/firebase/11.4.0/firebase-database-compat.js"></script>
+    <script defer src="/__/firebase/11.4.0/firebase-firestore-compat.js"></script>
+    <script defer src="/__/firebase/11.4.0/firebase-functions-compat.js"></script>
+    <script defer src="/__/firebase/11.4.0/firebase-messaging-compat.js"></script>
+    <script defer src="/__/firebase/11.4.0/firebase-storage-compat.js"></script>
+    <script defer src="/__/firebase/11.4.0/firebase-analytics-compat.js"></script>
+    <script defer src="/__/firebase/11.4.0/firebase-remote-config-compat.js"></script>
+    <script defer src="/__/firebase/11.4.0/firebase-performance-compat.js"></script>
+    <!-- 
+      initialize the SDK after all desired features are loaded, set useEmulator to false
+      to avoid connecting the SDK to running emulators.
+    -->
+    <script defer src="/__/firebase/init.js?useEmulator=true"></script>
+  
+  </head>
+  
+  <body>
+    <div class="container">
+      <h1 class="welcome-text">Welcome to Cleo</h1>
+      <div class="buttons">
+        <a href="#explore" class="btn">Explore Cleo</a>
+        <a href="#team" class="btn">Dev Team</a>
+      </div>
+    </div>
+
+    <style>
+      body {
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: #000;
+      overflow: hidden;
+      }
+      .container {
+      text-align: center;
+      max-width: 900px;
+      padding: 3rem;
+      z-index: 2;
+      }
+      .welcome-text {
+      font-size: 5rem;
+      font-weight: 700;
+      color: transparent;
+      position: relative;
+      display: inline-block;
+      -webkit-text-stroke: 2px #bbb;
+      }
+      .buttons {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      margin-top: 3rem;
+      }
+      .btn {
+      padding: 1rem 2.5rem;
+      border-radius: 25px;
+      font-size: 1.1rem;
+      font-weight: 500;
+      text-decoration: none;
+      color: white;
+      background-color: #007AFF;
+      transition: all 0.35s cubic-bezier(0.19, 1, 0.22, 1);
+      letter-spacing: 0.01em;
+      }
+      .btn:nth-child(2) {
+      background-color: rgba(255,255,255,0.1);
+      border: 1px solid rgba(255,255,255,0.2);
+      }
+      .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 25px rgba(0,122,255,0.4);
+      }
+      .btn:nth-child(2):hover {
+      background-color: rgba(255,255,255,0.15);
+      box-shadow: 0 10px 25px rgba(255,255,255,0.1);
+      }
+    </style>
+
+    <div class="background-glow"></div>
+    <div class="particles-container"></div>
+    <div class="noise-overlay"></div>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+      const welcomeText = document.querySelector('.welcome-text');
+      welcomeText.addEventListener('mousemove', (e) => {
+        const rect = welcomeText.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        const hue = ((x + y) / 2) % 360;
+        
+        welcomeText.style.backgroundImage = `
+        radial-gradient(circle 80px at ${x}px ${y}px, 
+        hsl(${hue}, 100%, 50%) 0%, 
+        transparent 70%)`;
+        welcomeText.style.backgroundClip = 'text';
+        welcomeText.style.webkitBackgroundClip = 'text';
+        welcomeText.style.webkitTextFillColor = 'transparent';
+        welcomeText.style.webkitTextStrokeColor = `hsl(${hue}, 100%, 50%)`;
+      });
+
+      welcomeText.addEventListener('mouseleave', () => {
+        welcomeText.style.backgroundImage = 'none';
+        welcomeText.style.webkitTextFillColor = 'initial';
+        welcomeText.style.webkitTextStrokeColor = '#bbb';
+      });
+      });
+    </script>
+    <script>
+      const timestamp = (new Date().getTime()).toString();
+      const script = document.createElement("script");
+      
+      const simplifyVersion = (ts) => `v${ts.substring(2, 4)}.${parseInt(ts.substring(4, 6), 10)}.${parseInt(ts.substring(6, 8), 10)}`;
+
+      script.src = `app.js?v=${simplifyVersion(timestamp)}`; 
+      document.head.appendChild(script);
+
+      console.log("App is currently running Client-side version " + simplifyVersion(timestamp));
+
+      
+    </script>
+
+  </body>
+</html>
