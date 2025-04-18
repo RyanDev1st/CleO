@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CleO - Classroom Attendance System</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    .view {
+      display: none;
+    }
+    
+    #loading-spinner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.7);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      display: none;
+    }
+    
+    .toast-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 9999;
+    }
+    
+    .toast {
+      margin-bottom: 10px;
+      min-width: 250px;
+    }
+    
+    .toast-success {
+      background-color: #d4edda;
+      border-color: #c3e6cb;
+    }
+    
+    .toast-error {
+      background-color: #f8d7da;
+      border-color: #f5c6cb;
+    }
+    
+    .toast-info {
+      background-color: #d1ecf1;
+      border-color: #bee5eb;
+    }
+  </style>
+</head>
+<body>
+  <!-- Loading Spinner -->
+  <div id="loading-spinner">
+    <div class="spinner-border text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+      <a class="navbar-brand" href="#">CleO</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav" id="nav-authenticated" style="display: none;">
+          <li class="nav-item">
+            <a class="nav-link" data-view="dashboard" href="#">Dashboard</a>
+          </li>
+          <li class="nav-item" id="nav-teacher-classes" style="display: none;">
+            <a class="nav-link" data-view="teacher-classes" href="#">My Classes</a>
+          </li>
+          <li class="nav-item" id="nav-teacher-sessions" style="display: none;">
+            <a class="nav-link" data-view="teacher-sessions" href="#">Sessions</a>
+          </li>
+          <li class="nav-item" id="nav-student-classes" style="display: none;">
+            <a class="nav-link" data-view="student-classes" href="#">My Classes</a>
+          </li>
+          <li class="nav-item" id="nav-student-sessions" style="display: none;">
+            <a class="nav-link" data-view="active-sessions" href="#">Join Session</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" data-view="profile" href="#">Profile</a>
+          </li>
+        </ul>
+        <ul class="navbar-nav ms-auto">
+          <li class="nav-item" id="nav-logout" style="display: none;">
+            <a class="nav-link" href="#" id="logout-btn">Logout</a>
+          </li>
+          <li class="nav-item" id="nav-login">
+            <a class="nav-link" data-view="login" href="#">Login</a>
+          </li>
+          <li class="nav-item" id="nav-register">
+            <a class="nav-link" data-view="register" href="#">Register</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Content Container -->
+  <div class="container py-5">
+    <!-- Login View -->
+    <div id="login-view" class="view">
+      <div class="row justify-content-center">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header">
+              <h4>Login</h4>
+            </div>
+            <div class="card-body">
+              <form id="login-form">
+                <div class="mb-3">
+                  <label for="login-email" class="form-label">Email</label>
+                  <input type="email" class="form-control" id="login-email" required>
+                </div>
+                <div class="mb-3">
+                  <label for="login-password" class="form-label">Password</label>
+                  <input type="password" class="form-control" id="login-password" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Login</button>
+              </form>
+              <hr>
+              <p>Don't have an account? <a href="#" data-view="register" class="view-link">Register</a></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Register View -->
+    <div id="register-view" class="view">
+      <div class="row justify-content-center">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header">
+              <h4>Register</h4>
+            </div>
+            <div class="card-body">
+              <form id="register-form">
+                <div class="mb-3">
+                  <label for="register-name" class="form-label">Name</label>
+                  <input type="text" class="form-control" id="register-name" required>
+                </div>
+                <div class="mb-3">
+                  <label for="register-email" class="form-label">Email</label>
+                  <input type="email" class="form-control" id="register-email" required>
+                </div>
+                <div class="mb-3">
+                  <label for="register-password" class="form-label">Password</label>
+                  <input type="password" class="form-control" id="register-password" required>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">I am a:</label>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="register-role" id="role-student" value="student" checked>
+                    <label class="form-check-label" for="role-student">Student</label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="register-role" id="role-teacher" value="teacher">
+                    <label class="form-check-label" for="role-teacher">Teacher</label>
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Register</button>
+              </form>
+              <hr>
+              <p>Already have an account? <a href="#" data-view="login" class="view-link">Login</a></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profile Setup View -->
+    <div id="profile-setup-view" class="view">
+      <div class="row justify-content-center">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header">
+              <h4>Complete Your Profile</h4>
+            </div>
+            <div class="card-body">
+              <form id="profile-setup-form">
+                <div class="mb-3">
+                  <label for="profile-name" class="form-label">Display Name</label>
+                  <input type="text" class="form-control" id="profile-name" required>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">I am a:</label>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="profile-role" id="setup-role-student" value="student" checked>
+                    <label class="form-check-label" for="setup-role-student">Student</label>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="profile-role" id="setup-role-teacher" value="teacher">
+                    <label class="form-check-label" for="setup-role-teacher">Teacher</label>
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Save Profile</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Teacher Dashboard View -->
+    <div id="teacher-dashboard-view" class="view">
+      <h2>Teacher Dashboard</h2>
+      <div class="row mb-4">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header">
+              <h5>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+              <div class="d-grid gap-2">
+                <button class="btn btn-primary" data-view="create-class">Create New Class</button>
+                <button class="btn btn-success" data-view="create-session">Start New Session</button>
+                <button class="btn btn-info" data-view="teacher-sessions">View Sessions</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header">
+              <h5>Your Classes</h5>
+            </div>
+            <div class="card-body" id="dashboard-classes">
+              <div class="text-center">
+                <div class="spinner-border spinner-border-sm" role="status">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Loading classes...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header">
+              <h5>Active Sessions</h5>
+            </div>
+            <div class="card-body" id="dashboard-sessions">
+              <div class="text-center">
+                <div class="spinner-border spinner-border-sm" role="status">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Loading sessions...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Student Dashboard View -->
+    <div id="student-dashboard-view" class="view">
+      <h2>Student Dashboard</h2>
+      <div class="row mb-4">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header">
+              <h5>Quick Actions</h5>
+            </div>
+            <div class="card-body">
+              <div class="d-grid gap-2">
+                <button class="btn btn-primary" data-view="join-class">Join a Class</button>
+                <button class="btn btn-success" data-view="active-sessions">Check In to Session</button>
+                <button class="btn btn-info" data-view="student-classes">View My Classes</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header">
+              <h5>Your Classes</h5>
+            </div>
+            <div class="card-body" id="student-dashboard-classes">
+              <div class="text-center">
+                <div class="spinner-border spinner-border-sm" role="status">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Loading classes...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header">
+              <h5>Active Sessions</h5>
+            </div>
+            <div class="card-body" id="student-dashboard-sessions">
+              <div class="text-center">
+                <div class="spinner-border spinner-border-sm" role="status">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Loading active sessions...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Teacher Classes View -->
+    <div id="teacher-classes-view" class="view">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>My Classes</h2>
+        <button class="btn btn-primary" data-view="create-class">Create New Class</button>
+      </div>
+      <div id="classes-container">
+        <div class="text-center">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p>Loading classes...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Student Classes View -->
+    <div id="student-classes-view" class="view">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>My Classes</h2>
+        <button class="btn btn-primary" data-view="join-class">Join a Class</button>
+      </div>
+      <div id="student-classes-container">
+        <div class="text-center">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p>Loading classes...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create Class View -->
+    <div id="create-class-view" class="view">
+      <div class="row justify-content-center">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header">
+              <h4>Create New Class</h4>
+            </div>
+            <div class="card-body">
+              <form id="class-form">
+                <div class="mb-3">
+                  <label for="class-name" class="form-label">Class Name</label>
+                  <input type="text" class="form-control" id="class-name" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Create Class</button>
+                <button type="button" class="btn btn-secondary" data-view="teacher-classes">Cancel</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Join Class View -->
+    <div id="join-class-view" class="view">
+      <div class="row justify-content-center">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header">
+              <h4>Join a Class</h4>
+            </div>
+            <div class="card-body">
+              <form id="join-class-form">
+                <div class="mb-3">
+                  <label for="join-code" class="form-label">Class Join Code</label>
+                  <input type="text" class="form-control" id="join-code" required>
+                  <div class="form-text">Enter the 6-character code provided by your teacher.</div>
+                </div>
+                <button type="submit" class="btn btn-primary">Join Class</button>
+                <button type="button" class="btn btn-secondary" data-view="student-classes">Cancel</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Teacher Sessions View -->
+    <div id="teacher-sessions-view" class="view">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Sessions</h2>
+        <button class="btn btn-primary" data-view="create-session">Start New Session</button>
+      </div>
+      <div id="sessions-container">
+        <div class="text-center">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p>Loading sessions...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Create Session View -->
+    <div id="create-session-view" class="view">
+      <div class="row justify-content-center">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header">
+              <h4>Start New Session</h4>
+            </div>
+            <div class="card-body">
+              <form id="session-form">
+                <div class="mb-3">
+                  <label for="session-class-id" class="form-label">Class</label>
+                  <select class="form-select" id="session-class-id" required>
+                    <option value="">Select class...</option>
+                    <!-- Will be populated dynamically -->
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label for="session-radius" class="form-label">Attendance Check-in Radius (meters)</label>
+                  <input type="number" class="form-control" id="session-radius" value="50" min="10" max="500" required>
+                </div>
+                <div class="mb-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="location-permission" required>
+                    <label class="form-check-label" for="location-permission">
+                      I allow the app to use my current location as the center point for attendance.
+                    </label>
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Start Session</button>
+                <button type="button" class="btn btn-secondary" data-view="teacher-sessions">Cancel</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Sessions View (Student) -->
+    <div id="active-sessions-view" class="view">
+      <h2>Active Sessions</h2>
+      <div id="active-sessions-container">
+        <div class="text-center">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p>Loading active sessions...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Attendance Check-In View -->
+    <div id="attendance-checkin-view" class="view">
+      <div class="row justify-content-center">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header">
+              <h4>Attendance Check-In</h4>
+            </div>
+            <div class="card-body">
+              <form id="attendance-checkin-form">
+                <input type="hidden" id="checkin-session-id">
+                <div class="mb-3">
+                  <p><strong>Class:</strong> <span id="checkin-class-id"></span></p>
+                </div>
+                <div class="mb-3">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="checkin-location-permission" required>
+                    <label class="form-check-label" for="checkin-location-permission">
+                      I allow the app to use my current location to verify my attendance.
+                    </label>
+                  </div>
+                </div>
+                <div class="mb-3">
+                  <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i>
+                    You need to be within the required radius of the class location to check in successfully.
+                  </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Check In</button>
+                <button type="button" class="btn btn-secondary" data-view="active-sessions">Cancel</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Attendance View (Teacher) -->
+    <div id="attendance-view" class="view">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Attendance Records</h2>
+        <button class="btn btn-secondary" data-view="teacher-sessions">Back to Sessions</button>
+      </div>
+      <div id="attendance-container">
+        <div class="text-center">
+          <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+          <p>Loading attendance records...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profile View -->
+    <div id="profile-view" class="view">
+      <div class="row justify-content-center">
+        <div class="col-md-6">
+          <div class="card">
+            <div class="card-header">
+              <h4>My Profile</h4>
+            </div>
+            <div class="card-body">
+              <div id="profile-content">
+                <p><strong>Name:</strong> <span id="profile-display-name"></span></p>
+                <p><strong>Email:</strong> <span id="profile-email"></span></p>
+                <p><strong>Role:</strong> <span id="profile-role"></span></p>
+              </div>
+              <hr>
+              <button class="btn btn-primary" id="edit-profile-btn">Edit Profile</button>
+              <button class="btn btn-danger" id="logout-btn2">Logout</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  
+  <!-- Firebase Emulator Setup -->
+  <script>
+    // Firebase configuration (placeholder for emulator use)
+    const firebaseConfig = {
+      apiKey: "fake-api-key",
+      authDomain: "demo-project.firebaseapp.com",
+      projectId: "demo-project",
+      storageBucket: "demo-project.appspot.com",
+      messagingSenderId: "123456789012",
+      appId: "1:123456789012:web:abc123def456"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    
+    // Check if running in local development
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+      console.log("Running locally - connecting to Firebase emulators");
+      
+      // Connect to the emulators using the ports from firebase.json
+      firebase.auth().useEmulator("http://127.0.0.1:9098");
+      firebase.firestore().useEmulator("127.0.0.1", 8003);
+      
+      // Display emulator warning
+      const emulatorBanner = document.createElement('div');
+      emulatorBanner.style.backgroundColor = '#e25555';
+      emulatorBanner.style.color = 'white';
+      emulatorBanner.style.padding = '10px';
+      emulatorBanner.style.position = 'fixed';
+      emulatorBanner.style.bottom = '0';
+      emulatorBanner.style.left = '0';
+      emulatorBanner.style.right = '0';
+      emulatorBanner.style.textAlign = 'center';
+      emulatorBanner.style.zIndex = '9999';
+      emulatorBanner.textContent = '⚠️ EMULATOR MODE - No data will be saved to production';
+      document.body.appendChild(emulatorBanner);
+    }
+  </script>
+
+  <!-- Bootstrap Bundle with Popper -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <!-- App script (type="module" for ES6 imports) -->
+  <script type="module" src="app.js"></script>
+  
+  <!-- Additional scripts for pages -->
+  <script>
+    // Allow view switching via data attributes
+    document.addEventListener('click', (e) => {
+      if (e.target.dataset.view) {
+        e.preventDefault();
+        // Use the exported function from app.js
+        const appModule = window.appModule;
+        if (appModule && appModule.showView) {
+          appModule.showView(e.target.dataset.view);
+        }
+      }
+    });
+  </script>
+</body>
+</html>

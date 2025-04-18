@@ -8,6 +8,7 @@
 		}
 	],
 	"settings": {
-		"liveServer.settings.multiRootWorkspaceName": "CleO"
+		"liveServer.settings.multiRootWorkspaceName": "CleO",
+		"powershell.cwd": "CleO"
 	}
 }

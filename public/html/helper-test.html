@@ -1,0 +1,1365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CleO - Helper Functions Test Page</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <style>
+    .section-container {
+      margin-bottom: 2rem;
+      padding: 1rem;
+      border: 1px solid #dee2e6;
+      border-radius: 0.5rem;
+      background-color: #f8f9fa;
+    }
+    
+    .function-container {
+      margin-bottom: 1rem;
+      padding: 1rem;
+      border: 1px solid #dee2e6;
+      border-radius: 0.5rem;
+      background-color: #fff;
+    }
+
+    .result-container {
+      margin-top: 1rem;
+      padding: 1rem;
+      border: 1px solid #dee2e6;
+      border-radius: 0.5rem;
+      background-color: #f1f9f1;
+      max-height: 300px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .error-container {
+      margin-top: 1rem;
+      padding: 1rem;
+      border: 1px solid #f5c6cb;
+      border-radius: 0.5rem;
+      background-color: #f8d7da;
+      color: #721c24;
+      display: none;
+    }
+
+    /* Tooltip styling */
+    .custom-tooltip {
+      position: relative;
+      display: inline-block;
+      margin-left: 0.5rem;
+      cursor: help;
+    }
+
+    .tooltip-text {
+      visibility: hidden;
+      width: 250px;
+      background-color: #555;
+      color: #fff;
+      text-align: center;
+      padding: 0.5rem;
+      border-radius: 0.25rem;
+      position: absolute;
+      z-index: 1;
+      bottom: 125%;
+      left: 50%;
+      margin-left: -125px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .custom-tooltip:hover .tooltip-text {
+      visibility: visible;
+      opacity: 1;
+    }
+    
+    .spinner-border {
+      display: none;
+      margin-left: 0.5rem;
+    }
+
+    .type-badge {
+      font-size: 10px;
+      padding: 2px 5px;
+      border-radius: 3px;
+      background-color: #e9ecef;
+      color: #495057;
+      margin-left: 5px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+      <a class="navbar-brand" href="#">CleO Helper Functions Test</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link" href="#shared-section">Shared Helpers</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#student-section">Student Helpers</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#teacher-section">Teacher Helpers</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content Container -->
+  <div class="container py-5">
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="alert alert-info">
+          <h4 class="alert-heading"><i class="bi bi-info-circle"></i> Testing Helper Functions</h4>
+          <p>This page allows you to test all helper functions with appropriate inputs and see their results.</p>
+          <p>Use the buttons below to invoke each helper function and see its output. Each function includes tooltips with information about required parameters.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shared Helper Functions Section -->
+    <section id="shared-section" class="section-container">
+      <h2>Shared Helper Functions</h2>
+      <p class="text-muted">Functions that can be used by both teachers and students.</p>
+      
+      <!-- getUserProfile -->
+      <div class="function-container">
+        <h5>getUserProfile</h5>
+        <p class="text-muted small">Retrieves user profile data.</p>
+        
+        <form id="getUserProfile-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getUserProfile-userId" class="form-label">
+              User ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The Firebase user ID to retrieve profile data for.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getUserProfile-userId" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get User Profile
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getUserProfile-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getUserProfile-output"></pre>
+        </div>
+        
+        <div id="getUserProfile-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getUserProfile-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- updateUserProfile -->
+      <div class="function-container">
+        <h5>updateUserProfile</h5>
+        <p class="text-muted small">Updates a user's profile information.</p>
+        
+        <form id="updateUserProfile-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="updateUserProfile-userId" class="form-label">
+              User ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The Firebase user ID to update.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="updateUserProfile-userId" required>
+          </div>
+          <div class="col-md-6">
+            <label for="updateUserProfile-displayName" class="form-label">
+              Display Name <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The new display name for the user.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="updateUserProfile-displayName">
+          </div>
+          <div class="col-md-6">
+            <label for="updateUserProfile-photoURL" class="form-label">
+              Photo URL <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The new profile photo URL.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="updateUserProfile-photoURL">
+          </div>
+          <div class="col-md-6">
+            <label for="updateUserProfile-preferredName" class="form-label">
+              Preferred Name <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The user's preferred name.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="updateUserProfile-preferredName">
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Update Profile
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="updateUserProfile-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="updateUserProfile-output"></pre>
+        </div>
+        
+        <div id="updateUserProfile-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="updateUserProfile-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- getClassDetails -->
+      <div class="function-container">
+        <h5>getClassDetails</h5>
+        <p class="text-muted small">Gets details of a class by ID.</p>
+        
+        <form id="getClassDetails-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getClassDetails-classId" class="form-label">
+              Class ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the class to retrieve details for.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getClassDetails-classId" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get Class Details
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getClassDetails-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getClassDetails-output"></pre>
+        </div>
+        
+        <div id="getClassDetails-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getClassDetails-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- getSessionDetails -->
+      <div class="function-container">
+        <h5>getSessionDetails</h5>
+        <p class="text-muted small">Gets details of a session by ID.</p>
+        
+        <form id="getSessionDetails-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getSessionDetails-sessionId" class="form-label">
+              Session ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the session to retrieve details for.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getSessionDetails-sessionId" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get Session Details
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getSessionDetails-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getSessionDetails-output"></pre>
+        </div>
+        
+        <div id="getSessionDetails-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getSessionDetails-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- getAttendanceStatus -->
+      <div class="function-container">
+        <h5>getAttendanceStatus</h5>
+        <p class="text-muted small">Gets student's attendance status for a specific session.</p>
+        
+        <form id="getAttendanceStatus-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getAttendanceStatus-sessionId" class="form-label">
+              Session ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the session to check attendance for.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getAttendanceStatus-sessionId" required>
+          </div>
+          <div class="col-md-6">
+            <label for="getAttendanceStatus-studentId" class="form-label">
+              Student ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the student to check attendance status for.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getAttendanceStatus-studentId" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get Attendance Status
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getAttendanceStatus-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getAttendanceStatus-output"></pre>
+        </div>
+        
+        <div id="getAttendanceStatus-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getAttendanceStatus-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- validateLocationForSession -->
+      <div class="function-container">
+        <h5>validateLocationForSession</h5>
+        <p class="text-muted small">Verifies if a student's location is within the session radius.</p>
+        
+        <form id="validateLocationForSession-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="validateLocationForSession-sessionId" class="form-label">
+              Session ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the session to validate location for.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="validateLocationForSession-sessionId" required>
+          </div>
+          <div class="col-md-6">
+            <label for="validateLocationForSession-latitude" class="form-label">
+              Latitude <span class="type-badge">number</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">Student's latitude coordinate.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="validateLocationForSession-latitude" required>
+          </div>
+          <div class="col-md-6">
+            <label for="validateLocationForSession-longitude" class="form-label">
+              Longitude <span class="type-badge">number</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">Student's longitude coordinate.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="validateLocationForSession-longitude" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Validate Location
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="validateLocationForSession-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="validateLocationForSession-output"></pre>
+        </div>
+        
+        <div id="validateLocationForSession-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="validateLocationForSession-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- calculateDistance -->
+      <div class="function-container">
+        <h5>calculateDistance</h5>
+        <p class="text-muted small">Calculate distance between two geographical points.</p>
+        
+        <form id="calculateDistance-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="calculateDistance-lat1" class="form-label">
+              Point 1 - Latitude <span class="type-badge">number</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">Latitude of the first point.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="calculateDistance-lat1" required>
+          </div>
+          <div class="col-md-6">
+            <label for="calculateDistance-lng1" class="form-label">
+              Point 1 - Longitude <span class="type-badge">number</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">Longitude of the first point.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="calculateDistance-lng1" required>
+          </div>
+          <div class="col-md-6">
+            <label for="calculateDistance-lat2" class="form-label">
+              Point 2 - Latitude <span class="type-badge">number</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">Latitude of the second point.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="calculateDistance-lat2" required>
+          </div>
+          <div class="col-md-6">
+            <label for="calculateDistance-lng2" class="form-label">
+              Point 2 - Longitude <span class="type-badge">number</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">Longitude of the second point.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="calculateDistance-lng2" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Calculate Distance
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="calculateDistance-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="calculateDistance-output"></pre>
+        </div>
+        
+        <div id="calculateDistance-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="calculateDistance-error-message"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Student Helper Functions Section -->
+    <section id="student-section" class="section-container">
+      <h2>Student Helper Functions</h2>
+      <p class="text-muted">Functions specific to student users.</p>
+      
+      <!-- getStudentClasses -->
+      <div class="function-container">
+        <h5>getStudentClasses</h5>
+        <p class="text-muted small">Returns all classes a student is enrolled in.</p>
+        
+        <form id="getStudentClasses-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getStudentClasses-studentId" class="form-label">
+              Student ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the student to get classes for.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getStudentClasses-studentId" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get Student Classes
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getStudentClasses-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getStudentClasses-output"></pre>
+        </div>
+        
+        <div id="getStudentClasses-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getStudentClasses-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- joinClassWithCode -->
+      <div class="function-container">
+        <h5>joinClassWithCode</h5>
+        <p class="text-muted small">Enrolls student in a class using the join code.</p>
+        
+        <form id="joinClassWithCode-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="joinClassWithCode-studentId" class="form-label">
+              Student ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the student joining the class.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="joinClassWithCode-studentId" required>
+          </div>
+          <div class="col-md-6">
+            <label for="joinClassWithCode-joinCode" class="form-label">
+              Join Code <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The 6-character class join code.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="joinClassWithCode-joinCode" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Join Class
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="joinClassWithCode-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="joinClassWithCode-output"></pre>
+        </div>
+        
+        <div id="joinClassWithCode-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="joinClassWithCode-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- leaveClass -->
+      <div class="function-container">
+        <h5>leaveClass</h5>
+        <p class="text-muted small">Removes student from a class.</p>
+        
+        <form id="leaveClass-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="leaveClass-studentId" class="form-label">
+              Student ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the student leaving the class.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="leaveClass-studentId" required>
+          </div>
+          <div class="col-md-6">
+            <label for="leaveClass-classId" class="form-label">
+              Class ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the class to leave.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="leaveClass-classId" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Leave Class
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="leaveClass-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="leaveClass-output"></pre>
+        </div>
+        
+        <div id="leaveClass-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="leaveClass-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- getActiveSessionsForStudent -->
+      <div class="function-container">
+        <h5>getActiveSessionsForStudent</h5>
+        <p class="text-muted small">Returns all currently active sessions across student's classes.</p>
+        
+        <form id="getActiveSessionsForStudent-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getActiveSessionsForStudent-studentId" class="form-label">
+              Student ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the student to get active sessions for.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getActiveSessionsForStudent-studentId" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get Active Sessions
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getActiveSessionsForStudent-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getActiveSessionsForStudent-output"></pre>
+        </div>
+        
+        <div id="getActiveSessionsForStudent-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getActiveSessionsForStudent-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- getStudentAttendanceHistory -->
+      <div class="function-container">
+        <h5>getStudentAttendanceHistory</h5>
+        <p class="text-muted small">Returns student's attendance record for a specific class.</p>
+        
+        <form id="getStudentAttendanceHistory-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getStudentAttendanceHistory-studentId" class="form-label">
+              Student ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the student to get attendance history for.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getStudentAttendanceHistory-studentId" required>
+          </div>
+          <div class="col-md-6">
+            <label for="getStudentAttendanceHistory-classId" class="form-label">
+              Class ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the class to get attendance for.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getStudentAttendanceHistory-classId" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get Attendance History
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getStudentAttendanceHistory-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getStudentAttendanceHistory-output"></pre>
+        </div>
+        
+        <div id="getStudentAttendanceHistory-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getStudentAttendanceHistory-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- checkInToSession -->
+      <div class="function-container">
+        <h5>checkInToSession</h5>
+        <p class="text-muted small">Submits student's check-in with GPS data.</p>
+        
+        <form id="checkInToSession-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="checkInToSession-sessionId" class="form-label">
+              Session ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the session to check in to.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="checkInToSession-sessionId" required>
+          </div>
+          <div class="col-md-6">
+            <label for="checkInToSession-studentId" class="form-label">
+              Student ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the student checking in.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="checkInToSession-studentId" required>
+          </div>
+          <div class="col-md-6">
+            <label for="checkInToSession-latitude" class="form-label">
+              Latitude <span class="type-badge">number</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The student's current latitude.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="checkInToSession-latitude" required>
+          </div>
+          <div class="col-md-6">
+            <label for="checkInToSession-longitude" class="form-label">
+              Longitude <span class="type-badge">number</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The student's current longitude.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="checkInToSession-longitude" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Check In To Session
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="checkInToSession-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="checkInToSession-output"></pre>
+        </div>
+        
+        <div id="checkInToSession-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="checkInToSession-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- checkOutFromSession -->
+      <div class="function-container">
+        <h5>checkOutFromSession</h5>
+        <p class="text-muted small">Checks out a student from a session early.</p>
+        
+        <form id="checkOutFromSession-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="checkOutFromSession-sessionId" class="form-label">
+              Session ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the session to check out from.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="checkOutFromSession-sessionId" required>
+          </div>
+          <div class="col-md-6">
+            <label for="checkOutFromSession-studentId" class="form-label">
+              Student ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the student checking out.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="checkOutFromSession-studentId" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Check Out From Session
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="checkOutFromSession-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="checkOutFromSession-output"></pre>
+        </div>
+        
+        <div id="checkOutFromSession-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="checkOutFromSession-error-message"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Teacher Helper Functions Section -->
+    <section id="teacher-section" class="section-container">
+      <h2>Teacher Helper Functions</h2>
+      <p class="text-muted">Functions specific to teacher users.</p>
+      
+      <!-- getTeacherClasses -->
+      <div class="function-container">
+        <h5>getTeacherClasses</h5>
+        <p class="text-muted small">Gets all classes created by a teacher.</p>
+        
+        <form id="getTeacherClasses-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getTeacherClasses-teacherId" class="form-label">
+              Teacher ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the teacher to get classes for.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getTeacherClasses-teacherId" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get Teacher Classes
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getTeacherClasses-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getTeacherClasses-output"></pre>
+        </div>
+        
+        <div id="getTeacherClasses-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getTeacherClasses-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- createClass -->
+      <div class="function-container">
+        <h5>createClass</h5>
+        <p class="text-muted small">Creates a new class for a teacher.</p>
+        
+        <form id="createClass-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="createClass-teacherId" class="form-label">
+              Teacher ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the teacher creating the class.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="createClass-teacherId" required>
+          </div>
+          <div class="col-md-6">
+            <label for="createClass-name" class="form-label">
+              Class Name <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The name of the class.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="createClass-name" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Create Class
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="createClass-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="createClass-output"></pre>
+        </div>
+        
+        <div id="createClass-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="createClass-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- getClassStudents -->
+      <div class="function-container">
+        <h5>getClassStudents</h5>
+        <p class="text-muted small">Gets all students enrolled in a specific class.</p>
+        
+        <form id="getClassStudents-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getClassStudents-classId" class="form-label">
+              Class ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the class to get students for.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getClassStudents-classId" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get Class Students
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getClassStudents-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getClassStudents-output"></pre>
+        </div>
+        
+        <div id="getClassStudents-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getClassStudents-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- createSession -->
+      <div class="function-container">
+        <h5>createSession</h5>
+        <p class="text-muted small">Creates a new attendance session for a class.</p>
+        
+        <form id="createSession-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="createSession-teacherId" class="form-label">
+              Teacher ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the teacher creating the session.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="createSession-teacherId" required>
+          </div>
+          <div class="col-md-6">
+            <label for="createSession-classId" class="form-label">
+              Class ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the class for this session.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="createSession-classId" required>
+          </div>
+          <div class="col-md-6">
+            <label for="createSession-latitude" class="form-label">
+              Latitude <span class="type-badge">number</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The center latitude for this session.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="createSession-latitude" required>
+          </div>
+          <div class="col-md-6">
+            <label for="createSession-longitude" class="form-label">
+              Longitude <span class="type-badge">number</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The center longitude for this session.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="createSession-longitude" required>
+          </div>
+          <div class="col-md-6">
+            <label for="createSession-radius" class="form-label">
+              Radius (meters) <span class="type-badge">number</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The allowed radius in meters from the center location.</span>
+              </span>
+            </label>
+            <input type="number" class="form-control" id="createSession-radius" value="50" min="10" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Create Session
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="createSession-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="createSession-output"></pre>
+        </div>
+        
+        <div id="createSession-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="createSession-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- getTeacherSessions -->
+      <div class="function-container">
+        <h5>getTeacherSessions</h5>
+        <p class="text-muted small">Gets all sessions created by a teacher.</p>
+        
+        <form id="getTeacherSessions-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getTeacherSessions-teacherId" class="form-label">
+              Teacher ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the teacher to get sessions for.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getTeacherSessions-teacherId" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get Teacher Sessions
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getTeacherSessions-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getTeacherSessions-output"></pre>
+        </div>
+        
+        <div id="getTeacherSessions-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getTeacherSessions-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- getSessionAttendance -->
+      <div class="function-container">
+        <h5>getSessionAttendance</h5>
+        <p class="text-muted small">Gets attendance records for a specific session.</p>
+        
+        <form id="getSessionAttendance-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getSessionAttendance-sessionId" class="form-label">
+              Session ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the session to get attendance for.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getSessionAttendance-sessionId" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get Session Attendance
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getSessionAttendance-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getSessionAttendance-output"></pre>
+        </div>
+        
+        <div id="getSessionAttendance-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getSessionAttendance-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- endSession -->
+      <div class="function-container">
+        <h5>endSession</h5>
+        <p class="text-muted small">Ends an active session.</p>
+        
+        <form id="endSession-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="endSession-sessionId" class="form-label">
+              Session ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the session to end.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="endSession-sessionId" required>
+          </div>
+          <div class="col-md-6">
+            <label for="endSession-teacherId" class="form-label">
+              Teacher ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the teacher ending the session.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="endSession-teacherId" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              End Session
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="endSession-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="endSession-output"></pre>
+        </div>
+        
+        <div id="endSession-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="endSession-error-message"></p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  
+  <!-- Firebase Initialization -->
+  <script>
+    // Firebase configuration (placeholder for emulator use)
+    const firebaseConfig = {
+      apiKey: "fake-api-key",
+      authDomain: "demo-project.firebaseapp.com",
+      projectId: "demo-project",
+      storageBucket: "demo-project.appspot.com",
+      messagingSenderId: "123456789012",
+      appId: "1:123456789012:web:abc123def456"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    
+    // Check if running in local development
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+      console.log("Running locally - connecting to Firebase emulators");
+      
+      // Connect to the emulators using the ports from firebase.json
+      firebase.auth().useEmulator("http://127.0.0.1:9098");
+      firebase.firestore().useEmulator("127.0.0.1", 8003);
+      
+      // Display emulator warning
+      const emulatorBanner = document.createElement('div');
+      emulatorBanner.style.backgroundColor = '#e25555';
+      emulatorBanner.style.color = 'white';
+      emulatorBanner.style.padding = '10px';
+      emulatorBanner.style.position = 'fixed';
+      emulatorBanner.style.bottom = '0';
+      emulatorBanner.style.left = '0';
+      emulatorBanner.style.right = '0';
+      emulatorBanner.style.textAlign = 'center';
+      emulatorBanner.style.zIndex = '9999';
+      emulatorBanner.textContent = '⚠️ EMULATOR MODE - No data will be saved to production';
+      document.body.appendChild(emulatorBanner);
+    }
+  </script>
+
+  <!-- Bootstrap Bundle with Popper -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <!-- Helper Test Script -->
+  <script type="module">
+    // Import helper functions
+    import * as sharedHelpers from '../js/sharedHelpers.js';
+    import * as studentHelpers from '../js/studentHelpers.js';
+    import * as teacherHelpers from '../js/teacherHelpers.js';
+    
+    // Generic function to handle form submissions
+    function setupFormHandler(formId, helperFunction, resultContainerId, errorContainerId) {
+      const form = document.getElementById(formId);
+      if (!form) return;
+      
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const resultContainer = document.getElementById(resultContainerId);
+        const errorContainer = document.getElementById(errorContainerId);
+        const resultOutput = document.getElementById(resultContainerId.replace('-result', '-output'));
+        const errorOutput = document.getElementById(errorContainerId.replace('-error', '-error-message'));
+        const spinner = form.querySelector('.spinner-border');
+        
+        // Hide previous results/errors
+        resultContainer.style.display = 'none';
+        errorContainer.style.display = 'none';
+        
+        // Show spinner
+        spinner.style.display = 'inline-block';
+        
+        try {
+          // Call the appropriate helper function with form data
+          const result = await executeHelperFunction(formId, helperFunction);
+          
+          // Display result
+          resultOutput.textContent = JSON.stringify(result, null, 2);
+          resultContainer.style.display = 'block';
+        } catch (error) {
+          // Display error
+          errorOutput.textContent = error.message || 'An unknown error occurred';
+          errorContainer.style.display = 'block';
+        } finally {
+          // Hide spinner
+          spinner.style.display = 'none';
+        }
+      });
+    }
+    
+    // Execute the appropriate helper function based on form ID
+    async function executeHelperFunction(formId, helperFunction) {
+      switch (formId) {
+        // Shared Helpers
+        case 'getUserProfile-form':
+          return await sharedHelpers.getUserProfile(document.getElementById('getUserProfile-userId').value);
+          
+        case 'updateUserProfile-form': {
+          const userId = document.getElementById('updateUserProfile-userId').value;
+          const displayName = document.getElementById('updateUserProfile-displayName').value || undefined;
+          const photoURL = document.getElementById('updateUserProfile-photoURL').value || undefined;
+          const preferredName = document.getElementById('updateUserProfile-preferredName').value || undefined;
+          
+          return await sharedHelpers.updateUserProfile(userId, {
+            displayName,
+            photoURL,
+            preferredName
+          });
+        }
+        
+        case 'getClassDetails-form':
+          return await sharedHelpers.getClassDetails(document.getElementById('getClassDetails-classId').value);
+          
+        case 'getSessionDetails-form':
+          return await sharedHelpers.getSessionDetails(document.getElementById('getSessionDetails-sessionId').value);
+          
+        case 'getAttendanceStatus-form':
+          return await sharedHelpers.getAttendanceStatus(
+            document.getElementById('getAttendanceStatus-sessionId').value,
+            document.getElementById('getAttendanceStatus-studentId').value
+          );
+          
+        case 'validateLocationForSession-form':
+          return await sharedHelpers.validateLocationForSession(
+            document.getElementById('validateLocationForSession-sessionId').value,
+            {
+              latitude: parseFloat(document.getElementById('validateLocationForSession-latitude').value),
+              longitude: parseFloat(document.getElementById('validateLocationForSession-longitude').value)
+            }
+          );
+          
+        case 'calculateDistance-form':
+          return sharedHelpers.calculateDistance(
+            {
+              latitude: parseFloat(document.getElementById('calculateDistance-lat1').value),
+              longitude: parseFloat(document.getElementById('calculateDistance-lng1').value)
+            },
+            {
+              latitude: parseFloat(document.getElementById('calculateDistance-lat2').value),
+              longitude: parseFloat(document.getElementById('calculateDistance-lng2').value)
+            }
+          );
+          
+        // Student Helpers
+        case 'getStudentClasses-form':
+          return await studentHelpers.getStudentClasses(document.getElementById('getStudentClasses-studentId').value);
+          
+        case 'joinClassWithCode-form':
+          return await studentHelpers.joinClassWithCode(
+            document.getElementById('joinClassWithCode-studentId').value,
+            document.getElementById('joinClassWithCode-joinCode').value
+          );
+          
+        case 'leaveClass-form':
+          return await studentHelpers.leaveClass(
+            document.getElementById('leaveClass-studentId').value,
+            document.getElementById('leaveClass-classId').value
+          );
+          
+        case 'getActiveSessionsForStudent-form':
+          return await studentHelpers.getActiveSessionsForStudent(document.getElementById('getActiveSessionsForStudent-studentId').value);
+          
+        case 'getStudentAttendanceHistory-form':
+          return await studentHelpers.getStudentAttendanceHistory(
+            document.getElementById('getStudentAttendanceHistory-studentId').value,
+            document.getElementById('getStudentAttendanceHistory-classId').value
+          );
+          
+        case 'checkInToSession-form':
+          return await studentHelpers.checkInToSession(
+            document.getElementById('checkInToSession-sessionId').value,
+            document.getElementById('checkInToSession-studentId').value,
+            {
+              latitude: parseFloat(document.getElementById('checkInToSession-latitude').value),
+              longitude: parseFloat(document.getElementById('checkInToSession-longitude').value)
+            }
+          );
+          
+        case 'checkOutFromSession-form':
+          return await studentHelpers.checkOutFromSession(
+            document.getElementById('checkOutFromSession-sessionId').value,
+            document.getElementById('checkOutFromSession-studentId').value
+          );
+          
+        // Teacher Helpers
+        case 'getTeacherClasses-form':
+          return await teacherHelpers.getTeacherClasses(document.getElementById('getTeacherClasses-teacherId').value);
+          
+        case 'createClass-form':
+          return await teacherHelpers.createClass(
+            document.getElementById('createClass-teacherId').value,
+            document.getElementById('createClass-name').value
+          );
+          
+        case 'getClassStudents-form':
+          return await teacherHelpers.getClassStudents(document.getElementById('getClassStudents-classId').value);
+          
+        case 'createSession-form':
+          return await teacherHelpers.createAttendanceSession(
+            document.getElementById('createSession-teacherId').value,
+            {
+              classId: document.getElementById('createSession-classId').value,
+              location: {
+                latitude: parseFloat(document.getElementById('createSession-latitude').value),
+                longitude: parseFloat(document.getElementById('createSession-longitude').value)
+              },
+              radius: parseInt(document.getElementById('createSession-radius').value)
+            }
+          );
+          
+        case 'getTeacherSessions-form':
+          return await teacherHelpers.getTeacherSessions(document.getElementById('getTeacherSessions-teacherId').value);
+          
+        case 'getSessionAttendance-form':
+          return await teacherHelpers.getSessionAttendance(document.getElementById('getSessionAttendance-sessionId').value);
+          
+        case 'endSession-form':
+          return await teacherHelpers.endSession(
+            document.getElementById('endSession-sessionId').value,
+            document.getElementById('endSession-teacherId').value
+          );
+          
+        default:
+          throw new Error(`Form not recognized: ${formId}`);
+      }
+    }
+    
+    // Setup handlers for all forms
+    document.addEventListener('DOMContentLoaded', () => {
+      // Shared Helpers
+      setupFormHandler('getUserProfile-form', 'getUserProfile', 'getUserProfile-result', 'getUserProfile-error');
+      setupFormHandler('updateUserProfile-form', 'updateUserProfile', 'updateUserProfile-result', 'updateUserProfile-error');
+      setupFormHandler('getClassDetails-form', 'getClassDetails', 'getClassDetails-result', 'getClassDetails-error');
+      setupFormHandler('getSessionDetails-form', 'getSessionDetails', 'getSessionDetails-result', 'getSessionDetails-error');
+      setupFormHandler('getAttendanceStatus-form', 'getAttendanceStatus', 'getAttendanceStatus-result', 'getAttendanceStatus-error');
+      setupFormHandler('validateLocationForSession-form', 'validateLocationForSession', 'validateLocationForSession-result', 'validateLocationForSession-error');
+      setupFormHandler('calculateDistance-form', 'calculateDistance', 'calculateDistance-result', 'calculateDistance-error');
+      
+      // Student Helpers
+      setupFormHandler('getStudentClasses-form', 'getStudentClasses', 'getStudentClasses-result', 'getStudentClasses-error');
+      setupFormHandler('joinClassWithCode-form', 'joinClassWithCode', 'joinClassWithCode-result', 'joinClassWithCode-error');
+      setupFormHandler('leaveClass-form', 'leaveClass', 'leaveClass-result', 'leaveClass-error');
+      setupFormHandler('getActiveSessionsForStudent-form', 'getActiveSessionsForStudent', 'getActiveSessionsForStudent-result', 'getActiveSessionsForStudent-error');
+      setupFormHandler('getStudentAttendanceHistory-form', 'getStudentAttendanceHistory', 'getStudentAttendanceHistory-result', 'getStudentAttendanceHistory-error');
+      setupFormHandler('checkInToSession-form', 'checkInToSession', 'checkInToSession-result', 'checkInToSession-error');
+      setupFormHandler('checkOutFromSession-form', 'checkOutFromSession', 'checkOutFromSession-result', 'checkOutFromSession-error');
+      
+      // Teacher Helpers
+      setupFormHandler('getTeacherClasses-form', 'getTeacherClasses', 'getTeacherClasses-result', 'getTeacherClasses-error');
+      setupFormHandler('createClass-form', 'createClass', 'createClass-result', 'createClass-error');
+      setupFormHandler('getClassStudents-form', 'getClassStudents', 'getClassStudents-result', 'getClassStudents-error');
+      setupFormHandler('createSession-form', 'createSession', 'createSession-result', 'createSession-error');
+      setupFormHandler('getTeacherSessions-form', 'getTeacherSessions', 'getTeacherSessions-result', 'getTeacherSessions-error');
+      setupFormHandler('getSessionAttendance-form', 'getSessionAttendance', 'getSessionAttendance-result', 'getSessionAttendance-error');
+      setupFormHandler('endSession-form', 'endSession', 'endSession-result', 'endSession-error');
+    });
+  </script>
+</body>
+</html>
+`

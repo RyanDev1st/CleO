@@ -1,0 +1,69 @@
+
+1. For Web
+Class Management
+
+getTeacherClasses(teacherId) - Returns all classes created by a specific teacher
+
+createClass(classData) - Creates a new class with teacher as owner
+
+updateClassDetails(classId, updatedData) - Updates class information (name, join code, etc.)
+
+generateClassJoinCode(classId) - Creates a new unique join code for a class
+
+getClassStudents(classId) - Returns all students enrolled in a specific class
+
+removeStudentFromClass(classId, studentId) - Removes a student from a class
+
+getClassAttendanceHistory(classId) - Returns attendance statistics for all sessions in a class
+
+Session Management
+
+createAttendanceSession(sessionData) - Creates a new attendance session
+
+startAttendanceSession(sessionId) - Activates a session and enables student check-ins
+
+endAttendanceSession(sessionId) - Closes a session and finalizes attendance records
+
+updateSessionLocation(sessionId, location, radius) - Updates the GPS coordinates and check-in radius
+
+getSessionAttendance(sessionId) - Returns real-time attendance data for an active session
+
+manuallyMarkAttendance(sessionId, studentId, status) - Allows teacher to override attendance status
+
+requestStudentVerification(sessionId, studentId) - Triggers verification request on student's device
+
+2. For App
+
+Class Management
+
+getStudentClasses(studentId) - Returns all classes a student is enrolled in
+
+joinClassWithCode(studentId, joinCode) - Enrolls student in a class using the join code
+
+leaveClass(studentId, classId) - Removes student from a class (if allowed)
+
+Session Management
+
+getActiveSessionsForStudent(studentId) - Returns all currently active sessions across student's classes
+
+getStudentAttendanceHistory(studentId, classId) - Returns student's attendance record for a specific class
+
+checkInToSession(sessionId, studentId, locationData) - Submits student's check-in with GPS data
+
+respondToVerificationRequest(sessionId, studentId, verificationData) - Sends verification data from student device
+
+3. Shared/System Helper Functions
+
+Authentication
+
+createUserAccount(userData, role) - Creates a new user with specified role
+
+updateUserProfile(userId, profileData) - Updates user profile information (Don’t implement yet…)
+
+getUserProfile(userId) - Retrieves user profile data (Don’t implement yet…)
+
+Location Services
+
+validateLocationForSession(sessionId, studentLocation) - Verifies if a student's location is within session radius
+
+calculateDistanceFromSessionCenter(sessionLocation, studentLocation) - Utility to calculate distance between points

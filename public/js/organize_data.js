@@ -1,6 +1,6 @@
-const { warn, info, error } = require('firebase-functions/logger');
-const { data } = require('./data.js'); // Use the initialized DataManager instance
-const admin = require('firebase-admin');
+// Client-side organize_data.js (compat version)
+import { data, firebase } from './data.js';
+import { db, auth } from './firebase-init.js';
 
 /**
  * Data Structure Schema and Operations for Firestore
@@ -26,7 +26,7 @@ async function getUserById(userId) {
         const userDoc = await data.collection(COLLECTIONS.USERS).get(userId);
         return userDoc ? userDoc.getData() : null;
     } catch (err) {
-        error(`Error getting user ${userId}:`, err);
+        console.error(`Error getting user ${userId}:`, err);
         throw err; // Re-throw for endpoint handler
     }
 }
@@ -40,7 +40,7 @@ async function getAllUsers() {
         const users = await data.collection(COLLECTIONS.USERS).getAll();
         return users.map(user => user.getData());
     } catch (err) {
-        error("Error getting all users:", err);
+        console.error("Error getting all users:", err);
         throw err;
     }
 }
@@ -53,15 +53,13 @@ async function getAllUsers() {
  */
 async function createOrUpdateUser(userId, userData) {
     try {
-        // Use the correct way to reference a document with a specific ID
-        const userDoc = data.collection(COLLECTIONS.USERS).doc(userId);
-        
+        const userDoc = data.collection(COLLECTIONS.USERS).add(userId);
         const dataToSet = {
             uid: userId,
             email: userData.email,
             displayName: userData.displayName,
             role: userData.role,
-            created_at: admin.firestore.FieldValue.serverTimestamp()
+            created_at: firebase.firestore.FieldValue.serverTimestamp()
         };
         
         await userDoc.set(dataToSet, { merge: true }); 
@@ -69,14 +67,13 @@ async function createOrUpdateUser(userId, userData) {
         const updatedDoc = await data.collection(COLLECTIONS.USERS).get(userId);
         return updatedDoc.getData();
     } catch (err) {
-        error(`Error creating/updating user ${userId}:`, err);
+        console.error(`Error creating/updating user ${userId}:`, err);
         throw err;
     }
 }
 
 /**
  * Updates a single field of a user document.
- * Note: For updating multiple fields based on allowed roles, use updateUserFields.
  * @param {string} userId - User ID to update
  * @param {string} field - The specific field name to update.
  * @param {any} value - The new value for the field.
@@ -104,15 +101,15 @@ async function updateUserField(userId, field, value) {
         // Create the update object for Firestore
         const updateObject = { [field]: value };
 
-        // Use the Document's internal reference to call Firestore's update
-        await userDoc._docRef.update(updateObject);
+        // Update the document
+        await userDoc.update(updateObject);
 
         // Fetch updated data to reflect the change
         const updatedDoc = await data.collection(COLLECTIONS.USERS).get(userId);
         return updatedDoc.getData(); // Return the full updated document data
 
     } catch (err) {
-        error(`Error updating field '${field}' for user ${userId}:`, err);
+        console.error(`Error updating field '${field}' for user ${userId}:`, err);
         // Re-throw the error for the calling function to handle
         throw err; 
     }
@@ -140,13 +137,13 @@ async function updateUserFields(userId, allowedFields, updateData) {
         }
         
         if (Object.keys(fieldsToUpdate).length > 0) { 
-            await userDoc._docRef.update(fieldsToUpdate); 
+            await userDoc.update(fieldsToUpdate); 
         }
         
         const updatedDoc = await data.collection(COLLECTIONS.USERS).get(userId);
         return updatedDoc.getData();
     } catch (err) {
-        error(`Error updating user ${userId}:`, err);
+        console.error(`Error updating user ${userId}:`, err);
         throw err;
     }
 }
@@ -160,13 +157,13 @@ async function deleteUser(userId) {
     try {
         const userDoc = await data.collection(COLLECTIONS.USERS).get(userId);
         if (!userDoc) {
-            warn(`User ${userId} not found for deletion.`);
+            console.warn(`User ${userId} not found for deletion.`);
             return true; 
         }
         await userDoc.delete();
         return true;
     } catch (err) {
-        error(`Error deleting user ${userId}:`, err);
+        console.error(`Error deleting user ${userId}:`, err);
         throw err;
     }
 }
@@ -179,7 +176,7 @@ async function deleteUser(userId) {
 async function createClass(classData) {
     try {
         const classesCollection = data.collection(COLLECTIONS.CLASSES);
-        const classId = classesCollection._collection.doc().id; // Generate Firestore ID
+        const classId = db.collection(COLLECTIONS.CLASSES).doc().id; // Generate Firestore ID
         const classDoc = classesCollection.add(classId);
         
         const joinCode = generateJoinCode();
@@ -189,14 +186,14 @@ async function createClass(classData) {
             name: classData.name,
             teacherId: classData.teacherId,
             joinCode,
-            created_at: admin.firestore.Timestamp.now()
+            created_at: firebase.firestore.FieldValue.serverTimestamp()
         };
         
         await classDoc.set(dataToSet);
         
         return dataToSet; // Return the raw data
     } catch (err) {
-        error("Error creating class:", err);
+        console.error("Error creating class:", err);
         throw err;
     }
 }
@@ -211,7 +208,7 @@ async function getClassById(classId) {
         const classDoc = await data.collection(COLLECTIONS.CLASSES).get(classId);
         return classDoc ? classDoc.getData() : null;
     } catch (err) {
-        error(`Error getting class ${classId}:`, err);
+        console.error(`Error getting class ${classId}:`, err);
         throw err;
     }
 }
@@ -228,7 +225,7 @@ async function getClassesByTeacher(teacherId) {
         );
         return classes.map(c => c.getData());
     } catch (err) {
-        error(`Error getting classes for teacher ${teacherId}:`, err);
+        console.error(`Error getting classes for teacher ${teacherId}:`, err);
         throw err;
     }
 }
@@ -240,7 +237,6 @@ async function getClassesByTeacher(teacherId) {
  */
 async function getClassesForStudent(studentId) {
     try {
-        const db = admin.firestore();
         const userClassesRef = db.collection(`userClasses/${studentId}/classes`);
         const snapshot = await userClassesRef.get();
         
@@ -255,7 +251,7 @@ async function getClassesForStudent(studentId) {
         return classDocs.map(doc => doc.getData());
         
     } catch (err) {
-        error(`Error getting classes for student ${studentId}:`, err);
+        console.error(`Error getting classes for student ${studentId}:`, err);
         throw err;
     }
 }
@@ -286,8 +282,7 @@ async function updateClass(classId, updateData) {
         }
         
         if (Object.keys(fieldsToUpdate).length > 0) {
-            // Fixed: Use _docRef.update instead of direct update call
-            await classDoc._docRef.update(fieldsToUpdate);
+            await classDoc.update(fieldsToUpdate);
         }
         
         const updatedDoc = await data.collection(COLLECTIONS.CLASSES).get(classId);
@@ -298,7 +293,7 @@ async function updateClass(classId, updateData) {
             joinCode: updateData.regenerateJoinCode ? newJoinCode : updatedData.joinCode
         };
     } catch (err) {
-        error(`Error updating class ${classId}:`, err);
+        console.error(`Error updating class ${classId}:`, err);
         throw err;
     }
 }
@@ -316,7 +311,7 @@ async function findClassByJoinCode(joinCode) {
         
         return classes.length > 0 ? classes[0].getData() : null;
     } catch (err) {
-        error(`Error finding class with join code ${joinCode}:`, err);
+        console.error(`Error finding class with join code ${joinCode}:`, err);
         throw err;
     }
 }
@@ -331,11 +326,10 @@ async function findClassByJoinCode(joinCode) {
  */
 async function addStudentToClass(classId, studentId, className, teacherName) {
     try {
-        const db = admin.firestore();
-        const studentRef = db.doc(`classes/${classId}/students/${studentId}`);
-        const userClassRef = db.doc(`userClasses/${studentId}/classes/${classId}`);
+        const studentRef = db.collection(`classes/${classId}/students`).doc(studentId);
+        const userClassRef = db.collection(`userClasses/${studentId}/classes`).doc(classId);
         
-        const timestamp = admin.firestore.Timestamp.now();
+        const timestamp = firebase.firestore.FieldValue.serverTimestamp();
         const batch = db.batch();
         
         batch.set(studentRef, { joinDate: timestamp });
@@ -344,7 +338,7 @@ async function addStudentToClass(classId, studentId, className, teacherName) {
         await batch.commit();
         return true;
     } catch (err) {
-        error(`Error adding student ${studentId} to class ${classId}:`, err);
+        console.error(`Error adding student ${studentId} to class ${classId}:`, err);
         throw err;
     }
 }
@@ -356,7 +350,6 @@ async function addStudentToClass(classId, studentId, className, teacherName) {
  */
 async function deleteClass(classId) {
     try {
-        const db = admin.firestore();
         const batch = db.batch();
         
         const studentsRef = db.collection(`classes/${classId}/students`);
@@ -364,16 +357,16 @@ async function deleteClass(classId) {
         
         studentsSnapshot.forEach(doc => {
             const studentId = doc.id;
-            batch.delete(db.doc(`userClasses/${studentId}/classes/${classId}`));
+            batch.delete(db.collection(`userClasses/${studentId}/classes`).doc(classId));
             batch.delete(doc.ref);
         });
         
-        batch.delete(db.doc(`classes/${classId}`));
+        batch.delete(db.collection(COLLECTIONS.CLASSES).doc(classId));
         
         await batch.commit();
         return true;
     } catch (err) {
-        error(`Error deleting class ${classId}:`, err);
+        console.error(`Error deleting class ${classId}:`, err);
         throw err;
     }
 }
@@ -386,10 +379,10 @@ async function deleteClass(classId) {
 async function createSession(sessionData) {
     try {
         const sessionsCollection = data.collection(COLLECTIONS.SESSIONS);
-        const sessionId = sessionsCollection._collection.doc().id;
+        const sessionId = db.collection(COLLECTIONS.SESSIONS).doc().id;
         const sessionDoc = sessionsCollection.add(sessionId);
         
-        const timestamp = admin.firestore.Timestamp.now();
+        const timestamp = firebase.firestore.FieldValue.serverTimestamp();
         
         const dataToSet = {
             sessionId,
@@ -398,7 +391,7 @@ async function createSession(sessionData) {
             startTime: timestamp,
             endTime: null,
             status: 'active',
-            location: new admin.firestore.GeoPoint(
+            location: new firebase.firestore.GeoPoint(
                 sessionData.location.latitude, 
                 sessionData.location.longitude
             ),
@@ -407,9 +400,15 @@ async function createSession(sessionData) {
         };
         
         await sessionDoc.set(dataToSet);
-        return dataToSet;
+        return {
+            ...dataToSet,
+            location: {
+                latitude: sessionData.location.latitude,
+                longitude: sessionData.location.longitude
+            }
+        };
     } catch (err) {
-        error("Error creating session:", err);
+        console.error("Error creating session:", err);
         throw err;
     }
 }
@@ -422,9 +421,21 @@ async function createSession(sessionData) {
 async function getSessionById(sessionId) {
     try {
         const sessionDoc = await data.collection(COLLECTIONS.SESSIONS).get(sessionId);
-        return sessionDoc ? sessionDoc.getData() : null;
+        if (!sessionDoc) return null;
+        
+        const sessionData = sessionDoc.getData();
+        
+        // Convert GeoPoint to plain object for easier client-side use
+        if (sessionData.location && typeof sessionData.location.latitude === 'function') {
+            sessionData.location = {
+                latitude: sessionData.location.latitude(),
+                longitude: sessionData.location.longitude()
+            };
+        }
+        
+        return sessionData;
     } catch (err) {
-        error(`Error getting session ${sessionId}:`, err);
+        console.error(`Error getting session ${sessionId}:`, err);
         throw err;
     }
 }
@@ -439,9 +450,22 @@ async function getSessionsByTeacher(teacherId) {
         const sessions = await data.collection(COLLECTIONS.SESSIONS).query(collection => 
             collection.where('teacherId', '==', teacherId)
         );
-        return sessions.map(s => s.getData());
+        
+        return sessions.map(s => {
+            const sessionData = s.getData();
+            
+            // Convert GeoPoint to plain object
+            if (sessionData.location && typeof sessionData.location.latitude === 'function') {
+                sessionData.location = {
+                    latitude: sessionData.location.latitude(),
+                    longitude: sessionData.location.longitude()
+                };
+            }
+            
+            return sessionData;
+        });
     } catch (err) {
-        error(`Error getting sessions for teacher ${teacherId}:`, err);
+        console.error(`Error getting sessions for teacher ${teacherId}:`, err);
         throw err;
     }
 }
@@ -458,15 +482,37 @@ async function getActiveSessionsForStudent(studentId, classIds) {
             return [];
         }
         
-        const sessions = await data.collection(COLLECTIONS.SESSIONS).query(collection => 
-            collection
-                .where('classId', 'in', classIds)
-                .where('status', '==', 'active')
-        );
+        // Process in chunks since 'in' operator has a limit of 10
+        const chunkSize = 10;
+        let allSessions = [];
         
-        return sessions.map(s => s.getData());
+        for (let i = 0; i < classIds.length; i += chunkSize) {
+            const chunk = classIds.slice(i, i + chunkSize);
+            
+            const sessions = await data.collection(COLLECTIONS.SESSIONS).query(collection => 
+                collection.where('classId', 'in', chunk).where('status', '==', 'active')
+            );
+            
+            const processedSessions = sessions.map(s => {
+                const sessionData = s.getData();
+                
+                // Convert GeoPoint to plain object
+                if (sessionData.location && typeof sessionData.location.latitude === 'function') {
+                    sessionData.location = {
+                        latitude: sessionData.location.latitude(),
+                        longitude: sessionData.location.longitude()
+                    };
+                }
+                
+                return sessionData;
+            });
+            
+            allSessions = [...allSessions, ...processedSessions];
+        }
+        
+        return allSessions;
     } catch (err) {
-        error(`Error getting active sessions for student ${studentId}:`, err);
+        console.error(`Error getting active sessions for student ${studentId}:`, err);
         throw err;
     }
 }
@@ -486,19 +532,28 @@ async function updateSessionStatus(sessionId, status) {
         
         const currentStatus = sessionDoc.get('status');
         if ((status === 'ended' || status === 'cancelled') && currentStatus === 'active') {
-            // Fixed: Use _docRef.update instead of direct update call
-            await sessionDoc._docRef.update({
+            await sessionDoc.update({
                 status: status,
-                endTime: admin.firestore.Timestamp.now()
+                endTime: firebase.firestore.FieldValue.serverTimestamp()
             });
         } else {
             throw new Error(`Invalid status transition from ${currentStatus} to ${status}`);
         }
         
         const updatedDoc = await data.collection(COLLECTIONS.SESSIONS).get(sessionId);
-        return updatedDoc.getData();
+        const sessionData = updatedDoc.getData();
+        
+        // Convert GeoPoint to plain object
+        if (sessionData.location && typeof sessionData.location.latitude === 'function') {
+            sessionData.location = {
+                latitude: sessionData.location.latitude(),
+                longitude: sessionData.location.longitude()
+            };
+        }
+        
+        return sessionData;
     } catch (err) {
-        error(`Error updating session ${sessionId} status:`, err);
+        console.error(`Error updating session ${sessionId} status:`, err);
         throw err;
     }
 }
@@ -510,21 +565,30 @@ async function updateSessionStatus(sessionId, status) {
  */
 async function getSessionAttendance(sessionId) {
     try {
-        const db = admin.firestore();
         const attendanceRef = db.collection(`sessions/${sessionId}/attendance`);
         const snapshot = await attendanceRef.get();
         
         const attendanceList = [];
         snapshot.forEach(doc => {
+            const data = doc.data();
+            
+            // Convert GeoPoint to plain object
+            if (data.checkInLocation && typeof data.checkInLocation.latitude === 'function') {
+                data.checkInLocation = {
+                    latitude: data.checkInLocation.latitude(),
+                    longitude: data.checkInLocation.longitude()
+                };
+            }
+            
             attendanceList.push({
                 studentId: doc.id,
-                ...doc.data()
+                ...data
             });
         });
         
         return attendanceList;
     } catch (err) {
-        error(`Error getting attendance for session ${sessionId}:`, err);
+        console.error(`Error getting attendance for session ${sessionId}:`, err);
         throw err;
     }
 }
@@ -538,7 +602,6 @@ async function getSessionAttendance(sessionId) {
  */
 async function checkInStudent(sessionId, studentId, location) {
     try {
-        const db = admin.firestore();
         const sessionDocData = await getSessionById(sessionId);
         if (!sessionDocData) {
             throw new Error(`Session ${sessionId} not found`);
@@ -549,14 +612,14 @@ async function checkInStudent(sessionId, studentId, location) {
         }
         
         const classId = sessionDocData.classId;
-        const studentRef = db.doc(`classes/${classId}/students/${studentId}`);
+        const studentRef = db.collection(`classes/${classId}/students`).doc(studentId);
         const studentDoc = await studentRef.get();
         
         if (!studentDoc.exists) {
             throw new Error('Student not enrolled in this class');
         }
         
-        const attendanceRef = db.doc(`sessions/${sessionId}/attendance/${studentId}`);
+        const attendanceRef = db.collection(`sessions/${sessionId}/attendance`).doc(studentId);
         const attendanceDoc = await attendanceRef.get();
         
         if (attendanceDoc.exists && 
@@ -565,23 +628,24 @@ async function checkInStudent(sessionId, studentId, location) {
             throw new Error('Already checked in');
         }
         
-        const studentLocation = new admin.firestore.GeoPoint(location.latitude, location.longitude);
+        const studentLocation = new firebase.firestore.GeoPoint(location.latitude, location.longitude);
         const sessionLocation = sessionDocData.location;
         const allowedRadius = sessionDocData.radius;
         
         const distance = calculateDistance(
-            { latitude: sessionLocation.latitude, longitude: sessionLocation.longitude },
+            sessionLocation,
             { latitude: location.latitude, longitude: location.longitude }
         );
         
         const isLocationValid = distance <= allowedRadius;
-        const timestamp = admin.firestore.Timestamp.now();
+        const timestamp = firebase.firestore.FieldValue.serverTimestamp();
         const checkInStatus = isLocationValid ? 'verified' : 'failed_location';
         
         await attendanceRef.set({
             classId,
             checkInTime: timestamp,
             checkInLocation: studentLocation,
+            checkOutTime: null, // Initialize checkOutTime as null
             status: checkInStatus,
             isGpsVerified: isLocationValid,
             lastUpdated: timestamp
@@ -593,7 +657,48 @@ async function checkInStudent(sessionId, studentId, location) {
             allowedRadius
         };
     } catch (err) {
-        error(`Error checking in student ${studentId} for session ${sessionId}:`, err);
+        console.error(`Error checking in student ${studentId} for session ${sessionId}:`, err);
+        throw err;
+    }
+}
+
+/**
+ * Checks out a student from a session early
+ * @param {string} sessionId - Session ID
+ * @param {string} studentId - Student's user ID
+ * @returns {Promise<Object>} - Check-out result { status, message }
+ */
+async function checkOutStudent(sessionId, studentId) {
+    try {
+        const sessionDocData = await getSessionById(sessionId);
+        if (!sessionDocData) {
+            throw new Error(`Session ${sessionId} not found`);
+        }
+        
+        if (sessionDocData.status !== 'active') {
+            throw new Error('Session is already ended');
+        }
+        
+        const attendanceRef = db.collection(`sessions/${sessionId}/attendance`).doc(studentId);
+        const attendanceDoc = await attendanceRef.get();
+        
+        if (!attendanceDoc.exists) {
+            throw new Error('Student has not checked in');
+        }
+        
+        // Update attendance record with checkout time
+        await attendanceRef.update({
+            checkOutTime: firebase.firestore.FieldValue.serverTimestamp(),
+            status: 'checked_out_early_before_verification',
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        return {
+            status: 'checked_out_early_before_verification',
+            message: 'Successfully checked out early from session'
+        };
+    } catch (err) {
+        console.error(`Error checking out student ${studentId} for session ${sessionId}:`, err);
         throw err;
     }
 }
@@ -653,114 +758,31 @@ const SCHEMA = {
             type: 'timestamp', 
             required: true, 
             description: 'When the user was created',
-            defaultValue: () => admin.firestore.FieldValue.serverTimestamp()
+            defaultValue: () => firebase.firestore.FieldValue.serverTimestamp()
         }
     },
-
-    CLASS: {
-        classId: { type: 'string', required: true, description: 'Class ID (auto-generated)' },
-        name: { type: 'string', required: true, description: 'Name of the class' },
-        teacherId: { type: 'string', required: true, description: 'UID of the teacher' },
-        joinCode: { type: 'string', required: true, description: 'Short code for students to join' },
-        created_at: { 
-            type: 'timestamp', 
-            required: true, 
-            description: 'When the class was created',
-            defaultValue: () => admin.firestore.FieldValue.serverTimestamp()
-        }
-    },
-
-    CLASS_STUDENT: {
-        joinDate: { 
-            type: 'timestamp', 
-            required: true, 
-            description: 'When the student joined the class',
-            defaultValue: () => admin.firestore.FieldValue.serverTimestamp()
-        }
-    },
-
-    SESSION: {
-        sessionId: { type: 'string', required: true, description: 'Session ID (auto-generated)' },
-        classId: { type: 'string', required: true, description: 'ID of the associated class' },
-        teacherId: { type: 'string', required: true, description: 'UID of the teacher' },
-        startTime: { 
-            type: 'timestamp', 
-            required: true, 
-            description: 'When the session started',
-            defaultValue: () => admin.firestore.FieldValue.serverTimestamp()
-        },
-        endTime: { 
-            type: 'timestamp', 
-            required: false, 
-            description: 'When the session ended (null if active)'
-        },
+    ATTENDANCE: {
+        studentId: { type: 'string', required: true, description: 'Student ID who checked in' },
+        classId: { type: 'string', required: true, description: 'Class ID for this attendance record' },
+        checkInTime: { type: 'timestamp', required: true, description: 'Timestamp when student checked in' },
+        checkInLocation: { type: 'geopoint', required: false, description: 'Location where student checked in' },
+        checkOutTime: { type: 'timestamp', required: false, description: 'Timestamp when student checked out early (if applicable)' },
         status: { 
             type: 'string', 
             required: true, 
-            description: 'Session status', 
-            enum: ['scheduled', 'active', 'ended', 'cancelled'],
-            defaultValue: 'active'
+            description: 'Attendance status',
+            enum: [
+                'pending', 
+                'checked_in', 
+                'verified', 
+                'failed_location', 
+                'failed_other', 
+                'absent',
+                'checked_out_early_before_verification'
+            ]
         },
-        location: { 
-            type: 'geopoint', 
-            required: true, 
-            description: 'Target geographical coordinate for attendance'
-        },
-        radius: { 
-            type: 'number', 
-            required: true, 
-            description: 'Radius in meters for valid check-in'
-        },
-        created_at: { 
-            type: 'timestamp', 
-            required: true, 
-            description: 'When the session was created',
-            defaultValue: () => admin.firestore.FieldValue.serverTimestamp()
-        }
-    },
-
-    SESSION_ATTENDANCE: {
-        classId: { type: 'string', required: true, description: 'ID of the associated class' },
-        checkInTime: { 
-            type: 'timestamp', 
-            required: false, 
-            description: 'When the student checked in'
-        },
-        checkInLocation: { 
-            type: 'geopoint', 
-            required: false, 
-            description: 'Location where the student checked in'
-        },
-        status: { 
-            type: 'string', 
-            required: true, 
-            description: 'Attendance status', 
-            enum: ['pending', 'checked_in', 'verified', 'failed_location', 'failed_other', 'absent'],
-            defaultValue: 'pending'
-        },
-        isGpsVerified: { 
-            type: 'boolean', 
-            required: true, 
-            description: 'Flag indicating if GPS proximity check passed',
-            defaultValue: false
-        },
-        lastUpdated: { 
-            type: 'timestamp', 
-            required: true, 
-            description: 'Last update timestamp',
-            defaultValue: () => admin.firestore.FieldValue.serverTimestamp()
-        }
-    },
-
-    USER_CLASS: {
-        className: { type: 'string', required: true, description: 'Denormalized class name' },
-        teacherName: { type: 'string', required: true, description: 'Denormalized teacher name' },
-        joinDate: { 
-            type: 'timestamp', 
-            required: true, 
-            description: 'When the student joined',
-            defaultValue: () => admin.firestore.FieldValue.serverTimestamp()
-        }
+        isGpsVerified: { type: 'boolean', required: false, description: 'Whether location verification succeeded' },
+        lastUpdated: { type: 'timestamp', required: true, description: 'Last update timestamp' }
     }
 };
 
@@ -776,7 +798,7 @@ const paths = {
     userClass: (userId, classId) => `${COLLECTIONS.USER_CLASSES}/${userId}/classes/${classId}`
 };
 
-module.exports = {
+export {
     getUserById,
     getAllUsers,
     createOrUpdateUser,
@@ -798,6 +820,7 @@ module.exports = {
     updateSessionStatus,
     getSessionAttendance,
     checkInStudent,
+    checkOutStudent,
     COLLECTIONS,
     SCHEMA,
     paths,

@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CleO API Test Suite</title>
+  
+  <!-- Firebase SDK -->
+  <script defer src="/__/firebase/11.4.0/firebase-app-compat.js"></script>
+  <script defer src="/__/firebase/11.4.0/firebase-auth-compat.js"></script>
+  <script defer src="/__/firebase/11.4.0/firebase-firestore-compat.js"></script>
+  <script defer src="/__/firebase/11.4.0/firebase-functions-compat.js"></script>
+  <script defer src="/__/firebase/init.js?useEmulator=true"></script>
+  
+  <style>
+    :root {
+      --primary-color: #007AFF;
+      --success-color: #34C759;
+      --error-color: #FF3B30;
+      --info-color: #5AC8FA;
+      --bg-color: #000;
+      --text-color: #fff;
+      --border-color: #333;
+      --card-bg: #1C1C1E;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      padding: 20px;
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 15px;
+    }
+    
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+    }
+    
+    .card {
+      background-color: var(--card-bg);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .card-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .button {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      border-radius: 20px;
+      padding: 8px 16px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .button:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+    
+    .button:active {
+      transform: translateY(1px);
+    }
+    
+    .button.secondary {
+      background-color: transparent;
+      border: 1px solid var(--primary-color);
+    }
+    
+    .test-controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .progress-container {
+      margin-bottom: 20px;
+    }
+    
+    progress {
+      width: 100%;
+      height: 10px;
+      border-radius: 5px;
+      background-color: var(--border-color);
+    }
+    
+    progress::-webkit-progress-bar {
+      background-color: var(--border-color);
+      border-radius: 5px;
+    }
+    
+    progress::-webkit-progress-value {
+      background-color: var(--primary-color);
+      border-radius: 5px;
+    }
+    
+    .status-text {
+      font-size: 14px;
+      margin-top: 5px;
+      color: #888;
+    }
+    
+    .test-results-container {
+      height: 400px;
+      overflow-y: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px;
+      background-color: rgba(0, 0, 0, 0.3);
+    }
+    
+    .test-result {
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 14px;
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    .test-result .result-type {
+      font-weight: bold;
+      padding: 2px 6px;
+      border-radius: 4px;
+      min-width: 70px;
+      text-align: center;
+    }
+    
+    .test-result .result-message {
+      flex: 1;
+    }
+    
+    .test-result .result-time {
+      color: #888;
+      font-size: 12px;
+    }
+    
+    .test-result.success .result-type {
+      background-color: var(--success-color);
+      color: black;
+    }
+    
+    .test-result.error .result-type {
+      background-color: var(--error-color);
+      color: white;
+    }
+    
+    .test-result.info .result-type {
+      background-color: var(--info-color);
+      color: black;
+    }
+    
+    .data-btn {
+      background-color: transparent;
+      border: 1px solid #555;
+      border-radius: 4px;
+      color: white;
+      padding: 3px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    
+    #data-view {
+      background-color: #111;
+      padding: 15px;
+      border-radius: 8px;
+      overflow: auto;
+      white-space: pre;
+      font-family: monospace;
+      margin-top: 20px;
+      display: none;
+      max-height: 300px;
+    }
+    
+    .instructions {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border-color);
+    }
+    
+    .instructions h2 {
+      margin-bottom: 15px;
+      font-size: 20px;
+    }
+    
+    .instructions ol,
+    .instructions ul {
+      margin-left: 20px;
+      margin-bottom: 15px;
+    }
+    
+    .instructions li {
+      margin-bottom: 8px;
+    }
+    
+    .user-info {
+      margin-bottom: 20px;
+      padding: 10px;
+      border-radius: 8px;
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        padding: 10px;
+      }
+      
+      .test-controls {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>CleO API Test Suite</h1>
+      <div id="auth-status">
+        <button id="sign-in-btn" class="button">Sign In</button>
+      </div>
+    </header>
+    
+    <div id="user-info" class="user-info" style="display: none;">
+      <div id="user-details"></div>
+    </div>
+    
+    <div class="card">
+      <div class="card-title">
+        <span>Test Controls</span>
+      </div>
+      
+      <div class="test-controls">
+        <button id="run-all-btn" class="button" disabled>Run All Tests</button>
+        <button id="server-time-btn" class="button secondary" disabled>Test Server Time</button>
+        <button id="create-user-btn" class="button secondary" disabled>Test User Creation</button>
+        <button id="create-class-btn" class="button secondary" disabled>Test Class Creation</button>
+        <button id="join-class-btn" class="button secondary" disabled>Test Join Class</button>
+        <button id="create-session-btn" class="button secondary" disabled>Test Session Creation</button>
+        <button id="check-in-btn" class="button secondary" disabled>Test Check-In</button>
+      </div>
+      
+      <div class="progress-container">
+        <progress id="test-progress" value="0" max="100"></progress>
+        <div id="test-status" class="status-text">Ready to run tests</div>
+      </div>
+    </div>
+    
+    <div class="card">
+      <div class="card-title">
+        <span>Test Results</span>
+        <button id="clear-results-btn" class="button secondary">Clear</button>
+      </div>
+      
+      <div class="test-results-container">
+        <div id="test-results"></div>
+      </div>
+      
+      <div id="data-view"></div>
+    </div>
+    
+    <div class="instructions">
+      <h2>Testing Instructions</h2>
+      
+      <p>This page allows you to test the client-server interactions for the CleO application. The tests verify that the Firebase Cloud Functions endpoints are working correctly.</p>
+      
+      <h3>Prerequisites</h3>
+      <ol>
+        <li>Ensure you have the Firebase Emulator Suite running locally</li>
+        <li>The Firebase project should be properly configured</li>
+        <li>The Firebase Cloud Functions should be deployed or running locally</li>
+      </ol>
+      
+      <h3>Testing Steps</h3>
+      <ol>
+        <li>Click "Sign In" to authenticate with Firebase</li>
+        <li>Once signed in, the test buttons will be enabled</li>
+        <li>Click "Run All Tests" to automatically run through all API tests in sequence</li>
+        <li>Alternatively, you can run individual tests using the other buttons</li>
+        <li>Check the results in the "Test Results" section</li>
+      </ol>
+      
+      <h3>Expected Results</h3>
+      <ul>
+        <li>Server Time - Should return the current server timestamp</li>
+        <li>User Creation - Should create a user record in Firestore</li>
+        <li>Class Creation - Should create a class with a join code</li>
+        <li>Join Class - Should add the current user to a class</li>
+        <li>Session Creation - Should create an attendance session with location</li>
+        <li>Check-In - Should mark attendance for the current user</li>
+      </ul>
+      
+      <h3>Troubleshooting</h3>
+      <ul>
+        <li>If tests fail with authentication errors, try signing out and back in</li>
+        <li>Check the browser console for detailed error messages</li>
+        <li>Verify that your Firebase emulator is running with the command:<br>
+          <code>firebase emulators:start</code></li>
+        <li>Ensure your Cloud Functions are deployed with:<br>
+          <code>firebase deploy --only functions</code></li>
+      </ul>
+    </div>
+  </div>
+  
+  <script src="../js/test-api.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Wait for Firebase to initialize
+      const waitForFirebase = () => {
+        if (typeof firebase !== 'undefined') {
+          initApp();
+        } else {
+          setTimeout(waitForFirebase, 100);
+        }
+      };
+      
+      waitForFirebase();
+      
+      function initApp() {
+        const signInBtn = document.getElementById('sign-in-btn');
+        const runAllBtn = document.getElementById('run-all-btn');
+        const serverTimeBtn = document.getElementById('server-time-btn');
+        const createUserBtn = document.getElementById('create-user-btn');
+        const createClassBtn = document.getElementById('create-class-btn');
+        const joinClassBtn = document.getElementById('join-class-btn');
+        const createSessionBtn = document.getElementById('create-session-btn');
+        const checkInBtn = document.getElementById('check-in-btn');
+        const clearResultsBtn = document.getElementById('clear-results-btn');
+        const userInfo = document.getElementById('user-info');
+        const userDetails = document.getElementById('user-details');
+        const testResults = document.getElementById('test-results');
+        
+        // Initialize API test module
+        const apiTest = CleOApiTest.init();
+        
+        // Auth state change listener
+        firebase.auth().onAuthStateChanged((user) => {
+          if (user) {
+            // User is signed in
+            signInBtn.textContent = 'Sign Out';
+            runAllBtn.disabled = false;
+            serverTimeBtn.disabled = false;
+            createUserBtn.disabled = false;
+            createClassBtn.disabled = false;
+            joinClassBtn.disabled = false;
+            createSessionBtn.disabled = false;
+            checkInBtn.disabled = false;
+            
+            userInfo.style.display = 'block';
+            userDetails.innerHTML = `
+              <strong>Signed in as:</strong> ${user.email || 'Anonymous User'}<br>
+              <strong>User ID:</strong> ${user.uid}<br>
+              <strong>Provider:</strong> ${user.providerData.length > 0 ? user.providerData[0].providerId : 'anonymous'}
+            `;
+          } else {
+            // User is signed out
+            signInBtn.textContent = 'Sign In';
+            runAllBtn.disabled = true;
+            serverTimeBtn.disabled = true;
+            createUserBtn.disabled = true;
+            createClassBtn.disabled = true;
+            joinClassBtn.disabled = true;
+            createSessionBtn.disabled = true;
+            checkInBtn.disabled = true;
+            
+            userInfo.style.display = 'none';
+            userDetails.innerHTML = '';
+          }
+        });
+        
+        // Button event listeners
+        signInBtn.addEventListener('click', async () => {
+          if (firebase.auth().currentUser) {
+            // Sign out
+            await firebase.auth().signOut();
+          } else {
+            // Sign in
+            try {
+              await CleOApiTest.signIn();
+            } catch (error) {
+              console.error('Sign in error:', error);
+            }
+          }
+        });
+        
+        runAllBtn.addEventListener('click', async () => {
+          try {
+            await CleOApiTest.runAllTests();
+          } catch (error) {
+            console.error('Test error:', error);
+          }
+        });
+        
+        serverTimeBtn.addEventListener('click', async () => {
+          try {
+            await CleOApiTest.testServerTime();
+          } catch (error) {
+            console.error('Server time test error:', error);
+          }
+        });
+        
+        createUserBtn.addEventListener('click', async () => {
+          try {
+            await CleOApiTest.testCreateUser();
+          } catch (error) {
+            console.error('User creation test error:', error);
+          }
+        });
+        
+        createClassBtn.addEventListener('click', async () => {
+          try {
+            await CleOApiTest.testCreateClass();
+          } catch (error) {
+            console.error('Class creation test error:', error);
+          }
+        });
+        
+        joinClassBtn.addEventListener('click', async () => {
+          try {
+            await CleOApiTest.testJoinClass();
+          } catch (error) {
+            console.error('Join class test error:', error);
+          }
+        });
+        
+        createSessionBtn.addEventListener('click', async () => {
+          try {
+            await CleOApiTest.testCreateSession();
+          } catch (error) {
+            console.error('Session creation test error:', error);
+          }
+        });
+        
+        checkInBtn.addEventListener('click', async () => {
+          try {
+            await CleOApiTest.testCheckIn();
+          } catch (error) {
+            console.error('Check-in test error:', error);
+          }
+        });
+        
+        clearResultsBtn.addEventListener('click', () => {
+          testResults.innerHTML = '';
+        });
+      }
+    });
+  </script>
+</body>
+</html>

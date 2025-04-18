@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CleO - Admin Test Data Generator</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <style>
+    body { 
+      padding-bottom: 50px;
+      background-color: #f8f9fa;
+    }
+    
+    .header {
+      background-color: #343a40;
+      color: white;
+      padding: 2rem 0;
+      margin-bottom: 2rem;
+    }
+    
+    .btn-primary {
+      background-color: #0d6efd;
+    }
+    
+    .btn-success {
+      background-color: #198754;
+    }
+    
+    .test-data-container {
+      background-color: #fff;
+      border-radius: 5px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      margin-bottom: 2rem;
+    }
+    
+    .data-structure-container {
+      margin-top: 3rem;
+    }
+    
+    .collection-card {
+      background-color: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 5px;
+      margin-bottom: 2rem;
+      overflow: hidden;
+    }
+    
+    .collection-header {
+      background-color: #0d6efd;
+      color: white;
+      padding: 10px 15px;
+      font-weight: bold;
+    }
+    
+    .subcollection-header {
+      background-color: #6c757d;
+      color: white;
+      padding: 8px 15px;
+      font-weight: bold;
+      margin-top: 15px;
+    }
+    
+    .document-example {
+      background-color: #fff;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      padding: 10px;
+      margin: 10px 0;
+      font-family: monospace;
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+    }
+    
+    .document-field {
+      padding: 2px 0;
+    }
+    
+    .field-name {
+      font-weight: bold;
+      color: #343a40;
+    }
+    
+    .field-type {
+      font-size: 0.8rem;
+      color: #6c757d;
+      margin-left: 0.5rem;
+    }
+    
+    .field-description {
+      font-size: 0.85rem;
+      color: #495057;
+      margin-left: 0.5rem;
+    }
+    
+    .emoji-icon {
+      margin-right: 5px;
+    }
+    
+    .warning-banner {
+      background-color: #e25555;
+      color: white;
+      padding: 10px;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      text-align: center;
+      z-index: 9999;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header text-center">
+    <div class="container">
+      <h1>CleO Test Data Generator</h1>
+      <p class="lead">Use the buttons below to create test data for the CleO application</p>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <div class="container">
+    <div class="row">
+      <div class="col-md-8 mx-auto text-center mb-4">
+        <p>Click "Admin User" to create just the admin user or "Complete Test Dataset" to create users, classes, sessions, and attendance records</p>
+        
+        <div class="d-grid gap-2 d-md-block">
+          <button id="create-admin-button" class="btn btn-primary btn-lg mx-2">Create Admin User Only</button>
+          <button id="create-all-button" class="btn btn-success btn-lg mx-2">Create Complete Test Dataset</button>
+        </div>
+        
+        <div id="admin-status" class="mt-4"></div>
+        <div id="admin-error" class="mt-4"></div>
+      </div>
+    </div>
+    
+    <!-- Data Structure Overview -->
+    <div class="row data-structure-container">
+      <div class="col-12">
+        <h2 class="text-center mb-4">CleO Data Structure</h2>
+        <p class="text-muted text-center mb-4">This shows how data is organized in the Firestore database</p>
+        
+        <!-- Users Collection -->
+        <div class="collection-card">
+          <div class="collection-header">
+            <span class="emoji-icon">👤</span> /users/{userId}
+          </div>
+          <div class="card-body">
+            <p>Each document represents a user account:</p>
+            
+            <div class="document-field">
+              <span class="field-name">uid:</span>
+              <span class="field-type">String</span>
+              <span class="field-description">- User ID (matches document ID). For admin user, this is explicitly set to "admin"</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">email:</span>
+              <span class="field-type">String</span>
+              <span class="field-description">- User's email address</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">displayName:</span>
+              <span class="field-type">String</span>
+              <span class="field-description">- User's full name</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">role:</span>
+              <span class="field-type">String</span>
+              <span class="field-description">- 'admin', 'teacher', or 'student'</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">created_at:</span>
+              <span class="field-type">Timestamp</span>
+              <span class="field-description">- When the user was created</span>
+            </div>
+            
+            <div class="document-example">
+              <h6 class="mb-2">Example Document:</h6>
+<pre>{
+  "uid": "admin",  // For admin user, explicitly set to "admin"
+  "email": "admin@cleouniversity.edu",
+  "displayName": "System Administrator",
+  "role": "admin",
+  "created_at": "2025-04-18T12:30:45Z"
+}</pre>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Classes Collection -->
+        <div class="collection-card">
+          <div class="collection-header">
+            <span class="emoji-icon">📚</span> /classes/{classId}
+          </div>
+          <div class="card-body">
+            <p>Each document represents a class:</p>
+            
+            <div class="document-field">
+              <span class="field-name">classId:</span>
+              <span class="field-type">String</span>
+              <span class="field-description">- Class ID (matches document ID)</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">name:</span>
+              <span class="field-type">String</span>
+              <span class="field-description">- Name of the class (e.g., "Computer Science 101")</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">teacherId:</span>
+              <span class="field-type">String</span>
+              <span class="field-description">- Reference to the teacher's user ID</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">joinCode:</span>
+              <span class="field-type">String</span>
+              <span class="field-description">- Short code for students to join the class</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">created_at:</span>
+              <span class="field-type">Timestamp</span>
+              <span class="field-description">- When the class was created</span>
+            </div>
+            
+            <div class="document-example">
+              <h6 class="mb-2">Example Document:</h6>
+<pre>{
+  "classId": "cs101",
+  "name": "Computer Science 101",
+  "teacherId": "teacher123",
+  "joinCode": "ABC123",
+  "created_at": "2025-04-18T10:15:30Z"
+}</pre>
+            </div>
+            
+            <div class="subcollection-header">
+              <span class="emoji-icon">👨‍🎓</span> /classes/{classId}/students/{studentId}
+            </div>
+            <p class="mt-2">Each document in this subcollection represents a student enrolled in the class:</p>
+            
+            <div class="document-field">
+              <span class="field-name">joinDate:</span>
+              <span class="field-type">Timestamp</span>
+              <span class="field-description">- When the student joined the class</span>
+            </div>
+            
+            <div class="document-example">
+              <h6 class="mb-2">Example Document:</h6>
+<pre>{
+  "joinDate": "2025-04-15T09:30:00Z"
+}</pre>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Sessions Collection -->
+        <div class="collection-card">
+          <div class="collection-header">
+            <span class="emoji-icon">📅</span> /sessions/{sessionId}
+          </div>
+          <div class="card-body">
+            <p>Each document represents an attendance session:</p>
+            
+            <div class="document-field">
+              <span class="field-name">sessionId:</span>
+              <span class="field-type">String</span>
+              <span class="field-description">- Session ID (matches document ID)</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">classId:</span>
+              <span class="field-type">String</span>
+              <span class="field-description">- Reference to class this session belongs to</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">teacherId:</span>
+              <span class="field-type">String</span>
+              <span class="field-description">- Reference to teacher running the session</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">startTime:</span>
+              <span class="field-type">Timestamp</span>
+              <span class="field-description">- When the session started or is scheduled to start</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">endTime:</span>
+              <span class="field-type">Timestamp | null</span>
+              <span class="field-description">- When the session ended (null if active)</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">status:</span>
+              <span class="field-type">String</span>
+              <span class="field-description">- 'scheduled', 'active', 'ended', or 'cancelled'</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">location:</span>
+              <span class="field-type">GeoPoint</span>
+              <span class="field-description">- Geographic location for the session</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">radius:</span>
+              <span class="field-type">Number</span>
+              <span class="field-description">- Radius in meters for valid check-in</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">created_at:</span>
+              <span class="field-type">Timestamp</span>
+              <span class="field-description">- When the session was created</span>
+            </div>
+            
+            <div class="document-example">
+              <h6 class="mb-2">Example Document:</h6>
+<pre>{
+  "sessionId": "session123",
+  "classId": "cs101",
+  "teacherId": "teacher123",
+  "startTime": "2025-04-18T14:00:00Z",
+  "endTime": null,
+  "status": "active",
+  "location": {
+    "latitude": 37.7749,
+    "longitude": -122.4194
+  },
+  "radius": 100,
+  "created_at": "2025-04-18T13:45:00Z"
+}</pre>
+            </div>
+            
+            <div class="subcollection-header">
+              <span class="emoji-icon">✅</span> /sessions/{sessionId}/attendance/{studentId}
+            </div>
+            <p class="mt-2">Each document in this subcollection represents a student's attendance record:</p>
+            
+            <div class="document-field">
+              <span class="field-name">studentId:</span>
+              <span class="field-type">String</span>
+              <span class="field-description">- Student's user ID</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">classId:</span>
+              <span class="field-type">String</span>
+              <span class="field-description">- Class ID for cross-session queries</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">checkInTime:</span>
+              <span class="field-type">Timestamp | null</span>
+              <span class="field-description">- When student checked in</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">checkInLocation:</span>
+              <span class="field-type">GeoPoint | null</span>
+              <span class="field-description">- Where student checked in</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">checkOutTime:</span>
+              <span class="field-type">Timestamp | null</span>
+              <span class="field-description">- When student checked out early (if applicable)</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">status:</span>
+              <span class="field-type">String</span>
+              <span class="field-description">- 'pending', 'checked_in', 'verified', 'failed_location', 'failed_other', 'absent', 'checked_out_early_before_verification'</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">isGpsVerified:</span>
+              <span class="field-type">Boolean</span>
+              <span class="field-description">- Whether location check passed</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">lastUpdated:</span>
+              <span class="field-type">Timestamp</span>
+              <span class="field-description">- When the record was last updated</span>
+            </div>
+            
+            <div class="document-example">
+              <h6 class="mb-2">Example Document:</h6>
+<pre>{
+  "studentId": "student123", 
+  "classId": "cs101",
+  "checkInTime": "2025-04-18T14:05:23Z",
+  "checkInLocation": {
+    "latitude": 37.7748,
+    "longitude": -122.4195
+  },
+  "checkOutTime": null,
+  "status": "verified",
+  "isGpsVerified": true,
+  "lastUpdated": "2025-04-18T14:05:23Z"
+}</pre>
+            </div>
+          </div>
+        </div>
+        
+        <!-- User Classes Collection -->
+        <div class="collection-card">
+          <div class="collection-header">
+            <span class="emoji-icon">🔗</span> /userClasses/{userId}/classes/{classId}
+          </div>
+          <div class="card-body">
+            <p>This collection enables efficient lookup of classes a student is enrolled in:</p>
+            
+            <div class="document-field">
+              <span class="field-name">className:</span>
+              <span class="field-type">String</span>
+              <span class="field-description">- Name of the class (denormalized for quick display)</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">teacherName:</span>
+              <span class="field-type">String</span>
+              <span class="field-description">- Teacher's name (denormalized for quick display)</span>
+            </div>
+            <div class="document-field">
+              <span class="field-name">joinDate:</span>
+              <span class="field-type">Timestamp</span>
+              <span class="field-description">- When the student joined the class</span>
+            </div>
+            
+            <div class="document-example">
+              <h6 class="mb-2">Example Document:</h6>
+<pre>{
+  "className": "Computer Science 101",
+  "teacherName": "Professor Smith",
+  "joinDate": "2025-04-15T09:30:00Z"
+}</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Warning Banner -->
+  <div class="warning-banner">
+    ⚠️ Running in emulator mode. Do not use with production credentials.
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  
+  <!-- Initialize Firebase -->
+  <script>
+    // Your web app's Firebase configuration (use emulator settings)
+    const firebaseConfig = {
+      apiKey: "demo-api-key",
+      authDomain: "demo-project.firebaseapp.com",
+      projectId: "cleo-attendance",
+      storageBucket: "demo-project.appspot.com",
+      messagingSenderId: "123456789012",
+      appId: "1:123456789012:web:123456789abcdef0123456"
+    };
+    
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    
+    // Enable emulators when running locally
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      console.log('Running on localhost, connecting to Firebase emulators');
+      
+      // Connect to Auth emulator
+      firebase.auth().useEmulator('http://127.0.0.1:9098');
+      
+      // Connect to Firestore emulator
+      firebase.firestore().useEmulator('127.0.0.1', 8003);
+      
+      console.log('Firebase emulators connected');
+    }
+  </script>
+  
+  <!-- Bootstrap Bundle with Popper -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <!-- Import module script -->
+  <script type="module">
+    // Import helper functions
+    import { addAdminUser, createAllTestData } from '../js/add-admin-user.js';
+    
+    document.addEventListener('DOMContentLoaded', () => {
+      const createAdminBtn = document.getElementById('create-admin-button');
+      const createAllBtn = document.getElementById('create-all-button');
+      
+      createAdminBtn.addEventListener('click', () => {
+        addAdminUser();
+      });
+      
+      createAllBtn.addEventListener('click', () => {
+        createAllTestData();
+      });
+    });
+  </script>
+</body>
+</html>
+``` 
