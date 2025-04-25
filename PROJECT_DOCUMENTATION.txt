@@ -1,0 +1,210 @@
+CleO Helper Functions Test Project Documentation
+
+1. Project Overview
+
+   The CleO Helper Functions Test Project provides a web-based interface to test and validate Firebase-backed helper functions for three user roles:
+   - Shared helpers (common to all users)
+   - Student helpers
+   - Teacher helpers
+
+   Features:
+   - API key authentication with EmailJS integration
+   - Modular JavaScript helpers organized by role
+   - Dark-themed UI with Bootstrap 5
+   - Real-time Firebase connection monitoring
+
+2. Repository Structure
+
+   ├── apphosting.local.yaml       # Local hosting configuration
+   ├── apphosting.yaml             # Production hosting configuration
+   ├── package.json                # Node dependencies and scripts
+   ├── firebase.json               # Firebase emulator & hosting settings
+   ├── storage.rules               # Firestore storage rules
+   ├── public/
+   │   ├── index.html              # Main application page (landing)
+   │   ├── html/
+   │   │   ├── helper-test.html    # Helper test UI (current document under test)
+   │   │   ├── admin-test.html     # Admin helper test page
+   │   │   └── 404.html            # Custom 404 page
+   │   ├── CSS/
+   │   │   ├── helper-test.css     # Styles for helper-test.html
+   │   │   └── admin-test.css      # Styles for admin-test.html
+   │   ├── js/
+   │   │   ├── sharedHelpers.js    # Exports shared helper functions
+   │   │   ├── studentHelpers.js   # Exports student-specific helpers
+   │   │   ├── teacherHelpers.js   # Exports teacher-specific helpers
+   │   │   ├── api-key-manager.js  # Handles API key storage & validation
+   │   │   ├── firebase-init.js    # Firebase initialization & connection-monitoring
+   │   │   └── ...                  # Additional utility scripts
+   └── docs/ (optional)
+       └── PROJECT_DOCUMENTATION.txt  # This documentation file
+
+3. Prerequisites
+   - Node.js (>= v14.x) & npm/yarn
+   - Firebase CLI (`npm install -g firebase-tools`)
+   - Firebase SDK: `npm install firebase`
+   - EmailJS Browser SDK: `npm install @emailjs/browser`
+   - EmailJS account/public key (configured in api-key-manager.js)
+
+4. Setup & Local Development
+
+   1. Clone repository:
+      git clone <repo-url> d:/CleO
+   2. Install dependencies:
+      cd d:/CleO
+      npm install
+   3. Start Firebase emulators (Auth, Firestore, Hosting):
+      firebase emulators:start --only auth,firestore,hosting
+   4. Serve the `public/` directory locally or open `public/html/helper-test.html` in browser.
+   5. Enter or request an API key (via EmailJS) to unlock the helper test UI.
+
+4.1 Configuration Details
+
+   - API Key Scope and Device Binding:
+     * Each API key generated is valid only on the device and browser where it was first activated.
+     * Once validated and stored locally (via sessionStorage), the key will not work on other devices or browsers.
+
+   - Firebase Initialization (public/js/firebase-init.js):
+     ```javascript
+     // Replace placeholder values in your project setup
+     const firebaseConfig = {
+       apiKey: "YOUR_API_KEY",
+       authDomain: "YOUR_AUTH_DOMAIN",
+       projectId: "YOUR_PROJECT_ID",
+       storageBucket: "YOUR_STORAGE_BUCKET",
+       messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+       appId: "YOUR_APP_ID"
+     };
+     ```
+
+   - EmailJS Setup (public/js/api-key-manager.js):
+     ```javascript
+     // Replace with your EmailJS template parameters
+     const emailParams = {
+       name: "YOUR_NAME",
+       email: "YOUR_EMAIL",
+       apiKey: apiKey,
+       message: "Your API key has been generated."
+     };
+     ```
+
+   - Emulator Ports (from firebase.json):
+     Mirror these in `public/js/firebase-init.js` under your emulator configuration:
+     ```javascript
+     const emulatorConfig = {
+       emulators: {
+         auth: { port: 49158 },
+         ui: { enabled: true, port: 49160 },
+         database: { port: 49161 },
+         hosting: { port: 49162 },
+         firestore: { port: 49163 }
+       }
+     };
+     ```
+
+5. Usage
+
+   - Authentication: Use the "Request New Key" button to generate and an email will be sent to DEV_EMAIL with an API key. Enter it to proceed.
+   - Navigation: Use the navbar to switch between Shared, Student, and Teacher helper sections.
+   - Testing: Fill out form inputs and submit to call the corresponding helper function. Results and errors display below each form.
+   - Connection Status: Real-time indicator shows Firebase connection health; reconnect button reloads the page.
+
+5.1 Available Testing & Diagnostic Tools
+   - helper-test.html: Interactive UI to call and inspect Shared, Student, and Teacher helper functions in real time.
+   - admin-test.html: Admin dashboard UI to manage classes, sessions, and user data, with live diagnostics via data-visualizer.js.
+   - data-visualizer.js: State-of-the-art charts and real-time analytics for session and attendance data directly from Firestore.
+   - Firebase Emulator Suite: Local emulators for Auth, Firestore, and Hosting, with debug logs in /logs.
+
+6. Extending Helpers
+
+   - To add a new helper function:
+     1. Export your function from the appropriate JS module (`sharedHelpers.js`, `studentHelpers.js`, or `teacherHelpers.js`).
+     2. Add a new `<div class="function-container">` in `helper-test.html` under the correct section.
+     3. Implement the form handler in `initializeHelperForms()` or `executeHelperFunction()`.
+     4. Add tooltip metadata for input guidance.
+
+10. Helper Function Reference
+
+10.1 public/js/data.js
+   - initializeFirestore(config): Configure and initialize Firestore connection. Must be called before any data operations.
+   - getCollection(ref): Generic helper to retrieve documents from a collection reference.
+   - setDocument(ref, data): Write or overwrite a document in Firestore.
+   - updateDocument(ref, updates): Perform partial updates on an existing document.
+   - deleteDocument(ref): Delete a document by reference.
+
+10.2 public/js/sharedHelpers.js
+   - getUserProfile(userId): Returns user profile data (name, email, preferences).
+   - updateUserProfile(userId, props): Update a user's profile fields (displayName, photoURL, preferredName).
+   - getClassDetails(classId): Fetch class metadata (name, joinCode, teacherId, enrolledStudents).
+   - getSessionDetails(sessionId): Retrieve session info (startTime, location, radius, status).
+   - getAttendanceStatus(sessionId, studentId): Return check‑in/out timestamps and status for a student.
+   - validateLocationForSession(sessionId, {latitude, longitude}): Verify if a coordinate lies within session radius.
+   - calculateDistance(pointA, pointB): Compute haversine distance (meters) between two geo‑points.
+
+10.3 public/js/studentHelpers.js
+   - getStudentClasses(studentId): List classes a student is enrolled in.
+   - joinClassWithCode(studentId, joinCode): Enroll student into a class using its join code.
+   - leaveClass(studentId, classId): Remove student from class roster.
+   - getActiveSessionsForStudent(studentId): Fetch all ongoing sessions for the student.
+   - getStudentAttendanceHistory(studentId): Retrieve full attendance record across sessions.
+   - checkInToSession(sessionId, studentId, location?): Record a student check‑in event, with optional geo‑validation.
+   - checkOutFromSession(sessionId, studentId): Record a student check‑out event.
+
+10.4 public/js/teacherHelpers.js
+   - getTeacherClasses(teacherId): List classes managed by a teacher.
+   - createClass(teacherId, {name}): Create a new class document with join code.
+   - getClassStudents(classId): List enrolled students in a class.
+   - createAttendanceSession(teacherId, {classId, location, radius, start_time?}): Open a new session for attendance.
+   - getTeacherSessions(teacherId): Retrieve all sessions created by a teacher.
+   - getSessionAttendance(sessionId): List all attendance events for a session.
+   - endSession(sessionId, teacherId): Mark an ongoing session as completed.
+
+11. Troubleshooting
+
+   - UI appears blank: Ensure API key authentication has completed successfully and Firebase emulator is running.
+   - CORS or network errors: Confirm `firebase.json` hosting settings allow local requests, and check the emulator host/port.
+   - EmailJS errors: Verify the public key in `api-key-manager.js` and the EmailJS service/template settings.
+
+8. Deployment
+
+   1. Build or copy `public/` directory contents to Firebase Hosting:
+      firebase deploy --only hosting
+   2. Configure production API key email workflows as per EmailJS docs.
+
+9. License & Contributions
+
+   - Firebase
+   - emailjs
+   - Youtube tutorials
+   - w3school
+   - geek4geeks
+
+12. Visual Guide
+
+   The following placeholders indicate where illustrative screenshots or diagrams should be inserted to enhance the documentation.
+
+12.1 API Key UI
+   A screenshot of the API key entry interface, showing the input field and buttons for submitting or requesting keys.
+   [INSERT_IMAGE]
+
+12.2 API Key Email
+   Show the template of the email sent via EmailJS containing the newly generated API key.
+   [INSERT_IMAGE]
+
+12.3 Admin Dashboard
+   Screenshot of the Admin Dashboard (`admin-test.html`), displaying class/session management tools and controls.
+   [INSERT_IMAGE]
+
+12.4 Helper Function Dashboard
+   Screenshot of the Helper Functions Dashboard (`helper-test.html`), illustrating form inputs and result containers.
+   [INSERT_IMAGE]
+
+12.5 Data Generation
+   Illustration of the data generation process or output from `data-visualizer.js`, showing raw data or generated structures.
+   [INSERT_IMAGE]
+
+12.6 Statistics & Analytics Tool
+   Screenshot of real-time analytics and charts provided by the statistics tool within the project.
+   [INSERT_IMAGE]
+
+**End of Documentation**

@@ -515,6 +515,35 @@ function setupEventListeners() {
     }
   });
   
+  // Add event listener for location permission checkbox
+  const locationPermissionCheckbox = document.getElementById('location-permission');
+  if (locationPermissionCheckbox) {
+    locationPermissionCheckbox.addEventListener('change', function() {
+      if (this.checked) {
+        // Get current position when checkbox is checked
+        navigator.geolocation.getCurrentPosition(
+          function(position) {
+            // Set the coordinates in the hidden fields
+            document.getElementById('session-lat').value = position.coords.latitude;
+            document.getElementById('session-lng').value = position.coords.longitude;
+            console.log('Location captured successfully:', position.coords.latitude, position.coords.longitude);
+            showToast('Location captured successfully!', 'success');
+          },
+          function(error) {
+            console.error('Error getting location:', error);
+            showToast('Failed to get your location. Please check your browser settings.', 'error');
+            locationPermissionCheckbox.checked = false;
+          },
+          { enableHighAccuracy: true }
+        );
+      } else {
+        // Clear the coordinates if checkbox is unchecked
+        document.getElementById('session-lat').value = '';
+        document.getElementById('session-lng').value = '';
+      }
+    });
+  }
+  
   // Add listeners for navigation changes to start/stop data visualization
   const adminNavLinks = document.querySelectorAll('[data-view="admin-dashboard"], [data-view="admin-test"]');
   adminNavLinks.forEach(link => {
@@ -647,7 +676,7 @@ async function handleProfileSetup(e) {
 // ---- Class Management Handlers ----
 
 async function loadClasses() {
-  if (!app.currentUser || !app.userProfile) return;
+  if (!app.currentUser || !app.userProfile) return [];
   showLoading();
   try {
     let query;
@@ -669,9 +698,11 @@ async function loadClasses() {
     } else {
       renderStudentClasses(classes);
     }
+    return classes; // Explicitly return the classes array
   } catch (error) {
     console.error('Error loading classes:', error);
     showToast('Failed to load classes.', 'error');
+    return []; // Return empty array on error
   } finally {
     hideLoading();
   }
@@ -1045,13 +1076,35 @@ async function handleCreateSession(e) {
   e.preventDefault();
   if (!app.currentUser || app.userProfile?.role !== 'teacher') return;
 
-  const classId = elements.sessionForm['session-class'].value;
-  const sessionName = elements.sessionForm['session-name'].value;
-  const durationMinutes = parseInt(elements.sessionForm['session-duration'].value, 10);
+  // Safely get form elements with null checking
+  const classIdElement = elements.sessionForm ? elements.sessionForm['session-class-id'] : null;
+  const sessionNameElement = elements.sessionForm ? elements.sessionForm['session-name'] : null;
+  const durationElement = elements.sessionForm ? elements.sessionForm['session-duration'] : null;
+  const latElement = elements.sessionForm ? elements.sessionForm['session-lat'] : null;
+  const lngElement = elements.sessionForm ? elements.sessionForm['session-lng'] : null;
+  const radiusElement = elements.sessionForm ? elements.sessionForm['session-radius'] : null;
+
+  // Log which elements are missing to help debugging
+  if (!classIdElement || !sessionNameElement || !durationElement || !latElement || !lngElement || !radiusElement) {
+    console.error('Form elements missing:', {
+      classIdElement: !!classIdElement,
+      sessionNameElement: !!sessionNameElement,
+      durationElement: !!durationElement,
+      latElement: !!latElement,
+      lngElement: !!lngElement,
+      radiusElement: !!radiusElement
+    });
+    showToast('Error: Session form is missing required elements. Please refresh the page and try again.', 'error');
+    return;
+  }
+
+  const classId = classIdElement.value;
+  const sessionName = sessionNameElement.value;
+  const durationMinutes = parseInt(durationElement.value, 10);
   // GPS settings
-  const latitude = parseFloat(elements.sessionForm['session-lat'].value);
-  const longitude = parseFloat(elements.sessionForm['session-lng'].value);
-  const radius = parseInt(elements.sessionForm['session-radius'].value, 10);
+  const latitude = parseFloat(latElement.value);
+  const longitude = parseFloat(lngElement.value);
+  const radius = parseInt(radiusElement.value, 10);
 
   if (!classId || !sessionName || isNaN(durationMinutes) || durationMinutes <= 0) {
     showToast('Please select a class, enter a name, and set a valid duration.', 'error');
@@ -1059,8 +1112,8 @@ async function handleCreateSession(e) {
   }
 
   if (isNaN(latitude) || isNaN(longitude) || isNaN(radius) || radius <= 0) {
-      showToast('Please enter valid GPS coordinates and radius.', 'error');
-      return;
+    showToast('Please enter valid GPS coordinates and radius.', 'error');
+    return;
   }
 
   const now = new Date();
@@ -1720,8 +1773,15 @@ function populateClassDropdown(classes) {
   const dropdown = document.getElementById('session-class-id');
   if (!dropdown) return;
   
+  // Add null check to prevent "Cannot read properties of undefined (reading 'map')" error
+  if (!classes || !Array.isArray(classes)) {
+    console.warn('populateClassDropdown called with invalid classes data:', classes);
+    dropdown.innerHTML = '<option value="">No classes available</option>';
+    return;
+  }
+  
   dropdown.innerHTML = classes.map(cls => `
-    <option value="${cls.classId}">${cls.name}</option>
+    <option value="${cls.classId || cls.id}">${cls.name}</option>
   `).join('');
 }
 

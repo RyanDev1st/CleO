@@ -460,9 +460,20 @@
                   </select>
                 </div>
                 <div class="mb-3">
+                  <label for="session-name" class="form-label">Session Name</label>
+                  <input type="text" class="form-control" id="session-name" placeholder="e.g. Lecture 1" required>
+                </div>
+                <div class="mb-3">
+                  <label for="session-duration" class="form-label">Duration (minutes)</label>
+                  <input type="number" class="form-control" id="session-duration" value="60" min="5" max="480" required>
+                </div>
+                <div class="mb-3">
                   <label for="session-radius" class="form-label">Attendance Check-in Radius (meters)</label>
                   <input type="number" class="form-control" id="session-radius" value="50" min="10" max="500" required>
                 </div>
+                <!-- Hidden fields for latitude and longitude that will be filled by JavaScript -->
+                <input type="hidden" id="session-lat" value="">
+                <input type="hidden" id="session-lng" value="">
                 <div class="mb-3">
                   <div class="form-check">
                     <input class="form-check-input" type="checkbox" id="location-permission" required>

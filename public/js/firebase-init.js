@@ -36,20 +36,21 @@ let firestoreInitialized = previouslyInitialized;
 const emulatorConfig = {
   "emulators": {
     "auth": {
-      "port": 49158
+      "port": 49168
     },
     "ui": {
       "enabled": true,
-      "port": 49160
+      "port": 49170
     },
+    "singleProjectMode": true,
     "database": {
-      "port": 49161
+      "port": 49174
     },
     "hosting": {
-      "port": 49162
+      "port": 49172
     },
     "firestore": {
-      "port": 49163
+      "port": 49173
     }
   }
 };
