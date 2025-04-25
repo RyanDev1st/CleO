@@ -59,6 +59,11 @@ class Collection {
         const documents = [];
         
         snapshot.forEach(doc => {
+            if (!doc || !doc.exists) {
+                console.warn('Warning: Empty or non-existent document encountered in collection processing');
+                return; // Skip this document
+            }
+            
             const document = new Document(this._collection, doc.id, this.Name);
             document._data = doc.data();
             document._docRef = doc.ref;
@@ -87,6 +92,11 @@ class Collection {
             const snapshot = await this._collection.where(firebase.firestore.FieldPath.documentId(), 'in', chunk).get();
             
             snapshot.forEach(doc => {
+                if (!doc || !doc.exists) {
+                    console.warn('Warning: Empty or non-existent document encountered in collection processing');
+                    return; // Skip this document
+                }
+                
                 const document = new Document(this._collection, doc.id, this.Name);
                 document._data = doc.data();
                 document._docRef = doc.ref;
@@ -112,6 +122,11 @@ class Collection {
         const documents = [];
         
         snapshot.forEach(doc => {
+            if (!doc || !doc.exists) {
+                console.warn('Warning: Empty or non-existent document encountered in collection processing');
+                return; // Skip this document
+            }
+            
             const document = new Document(this._collection, doc.id, this.Name);
             document._data = doc.data();
             document._docRef = doc.ref;

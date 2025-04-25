@@ -1,5 +1,8 @@
 {
   "devDependencies": {
     "supabase": "^2.15.8"
+  },
+  "dependencies": {
+    "emailjs-com": "^3.2.0"
   }
 }

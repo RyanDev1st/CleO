@@ -1,0 +1,1563 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CleO - Helper Functions Test Page</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <style>
+    .section-container {
+      margin-bottom: 2rem;
+      padding: 1rem;
+      border: 1px solid #dee2e6;
+      border-radius: 0.5rem;
+      background-color: #f8f9fa;
+    }
+    
+    .function-container {
+      margin-bottom: 1rem;
+      padding: 1rem;
+      border: 1px solid #dee2e6;
+      border-radius: 0.5rem;
+      background-color: #fff;
+    }
+
+    .result-container {
+      margin-top: 1rem;
+      padding: 1rem;
+      border: 1px solid #dee2e6;
+      border-radius: 0.5rem;
+      background-color: #f1f9f1;
+      max-height: 300px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .error-container {
+      margin-top: 1rem;
+      padding: 1rem;
+      border: 1px solid #f5c6cb;
+      border-radius: 0.5rem;
+      background-color: #f8d7da;
+      color: #721c24;
+      display: none;
+    }
+
+    /* Tooltip styling */
+    .custom-tooltip {
+      position: relative;
+      display: inline-block;
+      margin-left: 0.5rem;
+      cursor: help;
+    }
+
+    .tooltip-text {
+      visibility: hidden;
+      width: 250px;
+      background-color: #555;
+      color: #fff;
+      text-align: center;
+      padding: 0.5rem;
+      border-radius: 0.25rem;
+      position: absolute;
+      z-index: 1;
+      bottom: 125%;
+      left: 50%;
+      margin-left: -125px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .custom-tooltip:hover .tooltip-text {
+      visibility: visible;
+      opacity: 1;
+    }
+    
+    .spinner-border {
+      display: none;
+      margin-left: 0.5rem;
+    }
+
+    .type-badge {
+      font-size: 10px;
+      padding: 2px 5px;
+      border-radius: 3px;
+      background-color: #e9ecef;
+      color: #495057;
+      margin-left: 5px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body>
+  <-- Navigation -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+      <a class="navbar-brand" href="#">CleO Helper Functions Test</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav">
+          <li class="nav-item">
+            <a class="nav-link" href="#shared-section">Shared Helpers</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#student-section">Student Helpers</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#teacher-section">Teacher Helpers</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content Container -->
+  <div class="container py-5">
+    <div class="row mb-4">
+      <div class="col-12">
+        <!-- Added connection status alert div that was missing -->
+        <div id="connection-status" class="alert mb-4" style="display: none;"></div>
+        
+        <div class="alert alert-info">
+          <h4 class="alert-heading"><i class="bi bi-info-circle"></i> Testing Helper Functions</h4>
+          <p>This page allows you to test all helper functions with appropriate inputs and see their results.</p>
+          <p>Use the buttons below to invoke each helper function and see its output. Each function includes tooltips with information about required parameters.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shared Helper Functions Section -->
+    <section id="shared-section" class="section-container">
+      <h2>Shared Helper Functions</h2>
+      <p class="text-muted">Functions that can be used by both teachers and students.</p>
+      
+      <!-- getUserProfile -->
+      <div class="function-container">
+        <h5>getUserProfile</h5>
+        <p class="text-muted small">Retrieves user profile data including role, display name, and preferences.</p>
+        
+        <form id="getUserProfile-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getUserProfile-userId" class="form-label">
+              User ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The Firebase user ID to retrieve profile data for. Example: "uId123456". This unique identifier is used to fetch the specific user's profile information from Firestore.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getUserProfile-userId" placeholder="uId123456" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get User Profile
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getUserProfile-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getUserProfile-output"></pre>
+        </div>
+        
+        <div id="getUserProfile-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getUserProfile-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- updateUserProfile -->
+      <div class="function-container">
+        <h5>updateUserProfile</h5>
+        <p class="text-muted small">Updates a user's profile information in the database. All fields except userId are optional.</p>
+        
+        <form id="updateUserProfile-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="updateUserProfile-userId" class="form-label">
+              User ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The Firebase user ID to update. Example: "uId123456". This is required and identifies the specific user whose profile will be updated.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="updateUserProfile-userId" placeholder="uId123456" required>
+          </div>
+          <div class="col-md-6">
+            <label for="updateUserProfile-displayName" class="form-label">
+              Display Name <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The new display name for the user. Example: "John Doe". This is the name that will be shown publicly in the application.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="updateUserProfile-displayName" placeholder="John Doe">
+          </div>
+          <div class="col-md-6">
+            <label for="updateUserProfile-photoURL" class="form-label">
+              Photo URL <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The new profile photo URL. Example: "https://example.com/photos/user.jpg". Should be a valid URL to an image that will be used as the user's profile picture.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="updateUserProfile-photoURL" placeholder="https://example.com/photo.jpg">
+          </div>
+          <div class="col-md-6">
+            <label for="updateUserProfile-preferredName" class="form-label">
+              Preferred Name <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The user's preferred name. Example: "Johnny". This is an optional alternative name that the user prefers to be called.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="updateUserProfile-preferredName" placeholder="Johnny">
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Update Profile
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="updateUserProfile-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="updateUserProfile-output"></pre>
+        </div>
+        
+        <div id="updateUserProfile-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="updateUserProfile-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- getClassDetails -->
+      <div class="function-container">
+        <h5>getClassDetails</h5>
+        <p class="text-muted small">Gets details of a class by ID including name, teacher, join code and enrollment data.</p>
+        
+        <form id="getClassDetails-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getClassDetails-classId" class="form-label">
+              Class ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the class to retrieve details for. Example: "class123". This ID is generated when a teacher creates a class and is used to uniquely identify it in the database.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getClassDetails-classId" placeholder="class123" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get Class Details
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getClassDetails-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getClassDetails-output"></pre>
+        </div>
+        
+        <div id="getClassDetails-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getClassDetails-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- getSessionDetails -->
+      <div class="function-container">
+        <h5>getSessionDetails</h5>
+        <p class="text-muted small">Gets details of a session by ID including status, time, location, and attendance data.</p>
+        
+        <form id="getSessionDetails-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getSessionDetails-sessionId" class="form-label">
+              Session ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the session to retrieve details for. Example: "session123". This unique identifier is generated when a teacher creates a session and is used to access session data.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getSessionDetails-sessionId" placeholder="session123" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get Session Details
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getSessionDetails-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getSessionDetails-output"></pre>
+        </div>
+        
+        <div id="getSessionDetails-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getSessionDetails-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- getAttendanceStatus -->
+      <div class="function-container">
+        <h5>getAttendanceStatus</h5>
+        <p class="text-muted small">Gets student's attendance status for a specific session including check-in/out times.</p>
+        
+        <form id="getAttendanceStatus-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getAttendanceStatus-sessionId" class="form-label">
+              Session ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the session to check attendance for. Example: "session123". This identifies the specific attendance session record to query.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getAttendanceStatus-sessionId" placeholder="session123" required>
+          </div>
+          <div class="col-md-6">
+            <label for="getAttendanceStatus-studentId" class="form-label">
+              Student ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the student to check attendance status for. Example: "student456". This is the student whose attendance record you want to retrieve.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getAttendanceStatus-studentId" placeholder="student456" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get Attendance Status
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getAttendanceStatus-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getAttendanceStatus-output"></pre>
+        </div>
+        
+        <div id="getAttendanceStatus-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getAttendanceStatus-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- validateLocationForSession -->
+      <div class="function-container">
+        <h5>validateLocationForSession</h5>
+        <p class="text-muted small">Verifies if a student's location is within the session radius.</p>
+        
+        <form id="validateLocationForSession-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="validateLocationForSession-sessionId" class="form-label">
+              Session ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the session to validate location for. Example: "session123". This identifies the attendance session with its defined center location and radius.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="validateLocationForSession-sessionId" placeholder="session123" required>
+          </div>
+          <div class="col-md-6">
+            <label for="validateLocationForSession-latitude" class="form-label">
+              Latitude <span class="type-badge">number</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">Student's latitude coordinate. Example: 37.7749. This is the decimal format of the GPS latitude obtained from the student's device.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="validateLocationForSession-latitude" placeholder="37.7749" required>
+          </div>
+          <div class="col-md-6">
+            <label for="validateLocationForSession-longitude" class="form-label">
+              Longitude <span class="type-badge">number</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">Student's longitude coordinate. Example: -122.4194. This is the decimal format of the GPS longitude obtained from the student's device.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="validateLocationForSession-longitude" placeholder="-122.4194" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Validate Location
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="validateLocationForSession-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="validateLocationForSession-output"></pre>
+        </div>
+        
+        <div id="validateLocationForSession-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="validateLocationForSession-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- calculateDistance -->
+      <div class="function-container">
+        <h5>calculateDistance</h5>
+        <p class="text-muted small">Calculate distance between two geographical points using the Haversine formula.</p>
+        
+        <form id="calculateDistance-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="calculateDistance-lat1" class="form-label">
+              Point 1 - Latitude <span class="type-badge">number</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">Latitude of the first point. Example: 37.7749. This should be in decimal degrees format (not degrees/minutes/seconds).</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="calculateDistance-lat1" placeholder="37.7749" required>
+          </div>
+          <div class="col-md-6">
+            <label for="calculateDistance-lng1" class="form-label">
+              Point 1 - Longitude <span class="type-badge">number</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">Longitude of the first point. Example: -122.4194. This should be in decimal degrees format (not degrees/minutes/seconds).</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="calculateDistance-lng1" placeholder="-122.4194" required>
+          </div>
+          <div class="col-md-6">
+            <label for="calculateDistance-lat2" class="form-label">
+              Point 2 - Latitude <span class="type-badge">number</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">Latitude of the second point. Example: 34.0522. This should be in decimal degrees format (not degrees/minutes/seconds).</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="calculateDistance-lat2" placeholder="34.0522" required>
+          </div>
+          <div class="col-md-6">
+            <label for="calculateDistance-lng2" class="form-label">
+              Point 2 - Longitude <span class="type-badge">number</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">Longitude of the second point. Example: -118.2437. This should be in decimal degrees format (not degrees/minutes/seconds).</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="calculateDistance-lng2" placeholder="-118.2437" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Calculate Distance
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="calculateDistance-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="calculateDistance-output"></pre>
+        </div>
+        
+        <div id="calculateDistance-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="calculateDistance-error-message"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Student Helper Functions Section -->
+    <section id="student-section" class="section-container">
+      <h2>Student Helper Functions</h2>
+      <p class="text-muted">Functions specific to student users.</p>
+      
+      <!-- getStudentClasses -->
+      <div class="function-container">
+        <h5>getStudentClasses</h5>
+        <p class="text-muted small">Returns all classes a student is enrolled in.</p>
+        
+        <form id="getStudentClasses-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getStudentClasses-studentId" class="form-label">
+              Student ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The Firebase user ID of the student to retrieve classes for. Example: "student123". This retrieves all class enrollments for the specified student.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getStudentClasses-studentId" placeholder="student123" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get Student Classes
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getStudentClasses-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getStudentClasses-output"></pre>
+        </div>
+        
+        <div id="getStudentClasses-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getStudentClasses-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- joinClassWithCode -->
+      <div class="function-container">
+        <h5>joinClassWithCode</h5>
+        <p class="text-muted small">Enrolls student in a class using the join code.</p>
+        
+        <form id="joinClassWithCode-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="joinClassWithCode-studentId" class="form-label">
+              Student ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the student joining the class. Example: "student456". This is the Firebase user ID of the student enrolling in the class.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="joinClassWithCode-studentId" placeholder="student456" required>
+          </div>
+          <div class="col-md-6">
+            <label for="joinClassWithCode-joinCode" class="form-label">
+              Join Code <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The 6-character class join code. Example: "ABC123". This is the unique code provided by the teacher that allows students to join the class.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="joinClassWithCode-joinCode" placeholder="ABC123" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Join Class
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="joinClassWithCode-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="joinClassWithCode-output"></pre>
+        </div>
+        
+        <div id="joinClassWithCode-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="joinClassWithCode-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- leaveClass -->
+      <div class="function-container">
+        <h5>leaveClass</h5>
+        <p class="text-muted small">Removes student from a class.</p>
+        
+        <form id="leaveClass-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="leaveClass-studentId" class="form-label">
+              Student ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the student leaving the class. Example: "student456". This is the Firebase user ID of the student who wishes to unenroll from the class.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="leaveClass-studentId" placeholder="student456" required>
+          </div>
+          <div class="col-md-6">
+            <label for="leaveClass-classId" class="form-label">
+              Class ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the class to leave. Example: "class123". This is the unique identifier of the class the student wants to unenroll from.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="leaveClass-classId" placeholder="class123" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Leave Class
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="leaveClass-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="leaveClass-output"></pre>
+        </div>
+        
+        <div id="leaveClass-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="leaveClass-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- getActiveSessionsForStudent -->
+      <div class="function-container">
+        <h5>getActiveSessionsForStudent</h5>
+        <p class="text-muted small">Returns all currently active sessions across student's classes.</p>
+        
+        <form id="getActiveSessionsForStudent-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getActiveSessionsForStudent-studentId" class="form-label">
+              Student ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The Firebase user ID of the student to get active sessions for. Example: "student123". This will retrieve all ongoing attendance sessions from classes the student is enrolled in.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getActiveSessionsForStudent-studentId" placeholder="student123" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get Active Sessions
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getActiveSessionsForStudent-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getActiveSessionsForStudent-output"></pre>
+        </div>
+        
+        <div id="getActiveSessionsForStudent-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getActiveSessionsForStudent-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- getStudentAttendanceHistory -->
+      <div class="function-container">
+        <h5>getStudentAttendanceHistory</h5>
+        <p class="text-muted small">Returns student's attendance record for a specific class, including all sessions attended, missed, and their check-in/out times.</p>
+        
+        <form id="getStudentAttendanceHistory-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getStudentAttendanceHistory-studentId" class="form-label">
+              Student ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The Firebase user ID of the student to get attendance history for. Example: "student123". This retrieves the complete attendance record including present, late, and absent entries for this student in the specified class.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getStudentAttendanceHistory-studentId" placeholder="student123" required>
+          </div>
+          <div class="col-md-6">
+            <label for="getStudentAttendanceHistory-classId" class="form-label">
+              Class ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The unique ID of the class to get attendance for. Example: "class456". This identifies the specific class for which to retrieve the student's attendance records throughout the term/semester.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getStudentAttendanceHistory-classId" placeholder="class456" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get Attendance History
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getStudentAttendanceHistory-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getStudentAttendanceHistory-output"></pre>
+        </div>
+        
+        <div id="getStudentAttendanceHistory-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getStudentAttendanceHistory-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- checkInToSession -->
+      <div class="function-container">
+        <h5>checkInToSession</h5>
+        <p class="text-muted small">Submits student's check-in with GPS data to mark attendance in an active session.</p>
+        
+        <form id="checkInToSession-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="checkInToSession-sessionId" class="form-label">
+              Session ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the session to check in to. Example: "session123". This is the unique identifier for the active attendance session created by the teacher. Must be a currently active session.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="checkInToSession-sessionId" placeholder="session123" required>
+          </div>
+          <div class="col-md-6">
+            <label for="checkInToSession-studentId" class="form-label">
+              Student ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the student checking in. Example: "student456". This is the Firebase user ID of the student who is marking their attendance. Student must be enrolled in the class.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="checkInToSession-studentId" placeholder="student456" required>
+          </div>
+          <div class="col-md-6">
+            <label for="checkInToSession-latitude" class="form-label">
+              Latitude <span class="type-badge">number</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The student's current latitude coordinate. Example: 37.7749. This decimal value is obtained from the student's device GPS and is used to verify the student is physically present at the class location.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="checkInToSession-latitude" placeholder="37.7749" required>
+          </div>
+          <div class="col-md-6">
+            <label for="checkInToSession-longitude" class="form-label">
+              Longitude <span class="type-badge">number</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The student's current longitude coordinate. Example: -122.4194. This decimal value is obtained from the student's device GPS and is used to verify the student is physically present at the class location.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="checkInToSession-longitude" placeholder="-122.4194" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Check In To Session
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="checkInToSession-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="checkInToSession-output"></pre>
+        </div>
+        
+        <div id="checkInToSession-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="checkInToSession-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- checkOutFromSession -->
+      <div class="function-container">
+        <h5>checkOutFromSession</h5>
+        <p class="text-muted small">Checks out a student from a session early. Records the time of departure.</p>
+        
+        <form id="checkOutFromSession-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="checkOutFromSession-sessionId" class="form-label">
+              Session ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the session to check out from. Example: "session123". This must be an active session that the student has already checked into.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="checkOutFromSession-sessionId" placeholder="session123" required>
+          </div>
+          <div class="col-md-6">
+            <label for="checkOutFromSession-studentId" class="form-label">
+              Student ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the student checking out. Example: "student456". This is the Firebase user ID of the student who is leaving the class early. Student must have already checked in.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="checkOutFromSession-studentId" placeholder="student456" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Check Out From Session
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="checkOutFromSession-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="checkOutFromSession-output"></pre>
+        </div>
+        
+        <div id="checkOutFromSession-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="checkOutFromSession-error-message"></p>
+        </div>
+      </div>
+
+      <!-- checkIn -->
+      <div class="function-container">
+        <h5>checkIn</h5>
+        <p class="text-muted small">Checks a student into an active session.</p>
+        
+        <form id="checkIn-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="checkIn-sessionId" class="form-label">
+              Session ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The unique ID of the active session to check into. Example: "session456". Must reference an existing active session.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="checkIn-sessionId" placeholder="session456" required>
+          </div>
+          <div class="col-md-6">
+            <label for="checkIn-studentId" class="form-label">
+              Student ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The unique ID of the student checking in. Example: "student789". Must reference an enrolled student in the class.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="checkIn-studentId" placeholder="student789" required>
+          </div>
+          <div class="col-md-6">
+            <label for="checkIn-timestamp" class="form-label">
+              Timestamp <span class="type-badge">number</span> <span class="optional-badge">optional</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">Unix timestamp (in milliseconds) when the check-in occurred. Example: 1714050000000. If not provided, the current time will be used.</span>
+              </span>
+            </label>
+            <input type="number" class="form-control" id="checkIn-timestamp" placeholder="1714050000000">
+          </div>
+          <div class="col-md-6">
+            <label for="checkIn-notes" class="form-label">
+              Notes <span class="type-badge">string</span> <span class="optional-badge">optional</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">Additional notes about the check-in. Example: "Late arrival due to bus delay".</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="checkIn-notes" placeholder="Late arrival due to bus delay">
+          </div>
+          <div class="col-md-6">
+            <label for="checkIn-location" class="form-label">
+              Location <span class="type-badge">string</span> <span class="optional-badge">optional</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The physical location of the check-in, useful for remote or distributed sessions. Example: "North Campus" or "Room 202".</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="checkIn-location" placeholder="North Campus">
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Check In
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="checkIn-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="checkIn-output"></pre>
+        </div>
+        
+        <div id="checkIn-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="checkIn-error-message"></p>
+        </div>
+      </div>
+
+      <!-- checkOut -->
+      <div class="function-container">
+        <h5>checkOut</h5>
+        <p class="text-muted small">Checks a student out of an active session they previously checked into.</p>
+        
+        <form id="checkOut-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="checkOut-sessionId" class="form-label">
+              Session ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The unique ID of the active session to check out from. Example: "session456". Must reference a session the student is currently checked into.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="checkOut-sessionId" placeholder="session456" required>
+          </div>
+          <div class="col-md-6">
+            <label for="checkOut-studentId" class="form-label">
+              Student ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The unique ID of the student checking out. Example: "student789". Must reference a student currently checked into this session.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="checkOut-studentId" placeholder="student789" required>
+          </div>
+          <div class="col-md-6">
+            <label for="checkOut-timestamp" class="form-label">
+              Timestamp <span class="type-badge">number</span> <span class="optional-badge">optional</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">Unix timestamp (in milliseconds) when the check-out occurred. Example: 1714057200000. If not provided, the current time will be used.</span>
+              </span>
+            </label>
+            <input type="number" class="form-control" id="checkOut-timestamp" placeholder="1714057200000">
+          </div>
+          <div class="col-md-6">
+            <label for="checkOut-notes" class="form-label">
+              Notes <span class="type-badge">string</span> <span class="optional-badge">optional</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">Additional notes about the check-out. Example: "Early departure for doctor's appointment".</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="checkOut-notes" placeholder="Early departure for doctor's appointment">
+          </div>
+          <div class="col-md-6">
+            <label for="checkOut-completedTasks" class="form-label">
+              Completed Tasks <span class="type-badge">Array&lt;string&gt;</span> <span class="optional-badge">optional</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">List of task IDs or descriptions that were completed during the session. Example: "homework1,quiz2,group-project". Enter as comma-separated values.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="checkOut-completedTasks" placeholder="homework1,quiz2,group-project">
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Check Out
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="checkOut-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="checkOut-output"></pre>
+        </div>
+        
+        <div id="checkOut-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="checkOut-error-message"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Teacher Helper Functions Section -->
+    <section id="teacher-section" class="section-container">
+      <h2>Teacher Helper Functions</h2>
+      <p class="text-muted">Functions specific to teacher users.</p>
+      
+      <!-- getTeacherClasses -->
+      <div class="function-container">
+        <h5>getTeacherClasses</h5>
+        <p class="text-muted small">Gets all classes created by a teacher.</p>
+        
+        <form id="getTeacherClasses-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getTeacherClasses-teacherId" class="form-label">
+              Teacher ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The Firebase user ID of the teacher to retrieve classes for. Example: "teacher789". This will return all classes the teacher has created, including current and archived classes.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getTeacherClasses-teacherId" placeholder="teacher789" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get Teacher Classes
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getTeacherClasses-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getTeacherClasses-output"></pre>
+        </div>
+        
+        <div id="getTeacherClasses-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getTeacherClasses-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- createClass -->
+      <div class="function-container">
+        <h5>createClass</h5>
+        <p class="text-muted small">Creates a new class for a teacher with unique join code for students.</p>
+        
+        <form id="createClass-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="createClass-teacherId" class="form-label">
+              Teacher ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The Firebase user ID of the teacher creating the class. Example: "teacher789". This must be a valid teacher user account with appropriate permissions.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="createClass-teacherId" placeholder="teacher789" required>
+          </div>
+          <div class="col-md-6">
+            <label for="createClass-name" class="form-label">
+              Class Name <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The display name for the class. Example: "IoT 101". This is the title that students will see when enrolled in the class.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="createClass-name" placeholder="IoT 101" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Create Class
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="createClass-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="createClass-output"></pre>
+        </div>
+        
+        <div id="createClass-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="createClass-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- getClassStudents -->
+      <div class="function-container">
+        <h5>getClassStudents</h5>
+        <p class="text-muted small">Gets all students enrolled in a specific class.</p>
+        
+        <form id="getClassStudents-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getClassStudents-classId" class="form-label">
+              Class ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The unique ID of the class to get students for. Example: "class123". This returns all currently enrolled students with their profile information and enrollment dates.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getClassStudents-classId" placeholder="class123" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get Class Students
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getClassStudents-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getClassStudents-output"></pre>
+        </div>
+        
+        <div id="getClassStudents-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getClassStudents-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- createSession -->
+      <div class="function-container">
+        <h5>createSession</h5>
+        <p class="text-muted small">Creates a new session for a class, allowing students to check in.</p>
+        
+        <form id="createSession-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="createSession-classId" class="form-label">
+              Class ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The unique ID of the class for which to create a session. Example: "class789". Must reference an existing class in the system.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="createSession-classId" placeholder="class789" required>
+          </div>
+          <div class="col-md-6">
+            <label for="createSession-teacherId" class="form-label">
+              Teacher ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The unique ID of the teacher creating the session. Example: "teacher123". Must be the teacher assigned to this class or an admin.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="createSession-teacherId" placeholder="teacher123" required>
+          </div>
+          <div class="col-md-6">
+            <label for="createSession-startTime" class="form-label">
+              Start Time <span class="type-badge">number</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">Unix timestamp (in milliseconds) when the session starts. Example: 1714050000000. This can be the current time or a future time for scheduled sessions.</span>
+              </span>
+            </label>
+            <input type="number" class="form-control" id="createSession-startTime" placeholder="1714050000000" required>
+          </div>
+          <div class="col-md-6">
+            <label for="createSession-endTime" class="form-label">
+              End Time <span class="type-badge">number</span> <span class="optional-badge">optional</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">Unix timestamp (in milliseconds) when the session is scheduled to end. Example: 1714057200000. If not provided, the session will remain open until manually closed.</span>
+              </span>
+            </label>
+            <input type="number" class="form-control" id="createSession-endTime" placeholder="1714057200000">
+          </div>
+          <div class="col-md-12">
+            <label for="createSession-location" class="form-label">
+              Location <span class="type-badge">string</span> <span class="optional-badge">optional</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">Physical location where the session takes place. Example: "Room 101" or "Main Building, 3rd Floor".</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="createSession-location" placeholder="Room 101">
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Create Session
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="createSession-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="createSession-output"></pre>
+        </div>
+        
+        <div id="createSession-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="createSession-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- getTeacherSessions -->
+      <div class="function-container">
+        <h5>getTeacherSessions</h5>
+        <p class="text-muted small">Gets all sessions created by a teacher.</p>
+        
+        <form id="getTeacherSessions-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getTeacherSessions-teacherId" class="form-label">
+              Teacher ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the teacher to get sessions for.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getTeacherSessions-teacherId" placeholder = "teachid123" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get Teacher Sessions
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getTeacherSessions-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getTeacherSessions-output"></pre>
+        </div>
+        
+        <div id="getTeacherSessions-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getTeacherSessions-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- getSessionAttendance -->
+      <div class="function-container">
+        <h5>getSessionAttendance</h5>
+        <p class="text-muted small">Gets attendance records for a specific session.</p>
+        
+        <form id="getSessionAttendance-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="getSessionAttendance-sessionId" class="form-label">
+              Session ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the session to get attendance for.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="getSessionAttendance-sessionId" placeholder="session123" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              Get Session Attendance
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="getSessionAttendance-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="getSessionAttendance-output"></pre>
+        </div>
+        
+        <div id="getSessionAttendance-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="getSessionAttendance-error-message"></p>
+        </div>
+      </div>
+      
+      <!-- endSession -->
+      <div class="function-container">
+        <h5>endSession</h5>
+        <p class="text-muted small">Ends an active session.</p>
+        
+        <form id="endSession-form" class="row g-3">
+          <div class="col-md-6">
+            <label for="endSession-sessionId" class="form-label">
+              Session ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the session to end.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="endSession-sessionId" placeholder = "session123" required>
+          </div>
+          <div class="col-md-6">
+            <label for="endSession-teacherId" class="form-label">
+              Teacher ID <span class="type-badge">string</span>
+              <span class="custom-tooltip">
+                <i class="bi bi-question-circle"></i>
+                <span class="tooltip-text">The ID of the teacher ending the session.</span>
+              </span>
+            </label>
+            <input type="text" class="form-control" id="endSession-teacherId" placeholder = "teacherid123" required>
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              End Session
+              <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+            </button>
+          </div>
+        </form>
+        
+        <div id="endSession-result" class="result-container">
+          <h6>Result:</h6>
+          <pre id="endSession-output"></pre>
+        </div>
+        
+        <div id="endSession-error" class="error-container">
+          <h6>Error:</h6>
+          <p id="endSession-error-message"></p>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+  
+  <!-- Bootstrap Bundle with Popper -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <!-- Helper Test Script -->
+  <script type="module">
+    // Import helper functions
+    import * as sharedHelpers from '../js/sharedHelpers.js';
+    import * as studentHelpers from '../js/studentHelpers.js';
+    import * as teacherHelpers from '../js/teacherHelpers.js';
+    import { getFirebase, onConnectionChange } from '../js/firebase-init.js';
+
+    // Initialize Firebase and handle connection changes
+    document.addEventListener('DOMContentLoaded', async () => {
+      console.log("DOM content loaded, initializing Firebase...");
+      
+      // Show loading state
+      const connectionStatus = document.getElementById('connection-status');
+      connectionStatus.style.display = 'block';
+      connectionStatus.className = 'alert alert-info mb-4';
+      connectionStatus.innerHTML = '<strong>Connecting to Firebase...</strong> Please wait.';
+      
+      try {
+        // Get the already initialized Firebase instead of initializing again
+        const firebaseServices = getFirebase();
+        console.log("Firebase services obtained:", firebaseServices);
+        
+        // Update UI based on connection status
+        showConnectionStatus(firebaseServices.isOnline);
+        
+        // Monitor connection changes
+        onConnectionChange((online, errorCode) => {
+          console.log(`Connection status changed: ${online ? 'online' : 'offline'}, Error: ${errorCode || 'none'}`);
+          showConnectionStatus(online, errorCode);
+        });
+      } catch (error) {
+        console.error("Failed to get Firebase services:", error);
+        showConnectionStatus(false, 'initialization-failed');
+      }
+    });
+
+    // Show connection status
+    function showConnectionStatus(isOnline, errorCode = null) {
+      const connectionStatus = document.getElementById('connection-status');
+      if (!connectionStatus) {
+        console.error("connection-status element not found");
+        return;
+      }
+      
+      connectionStatus.style.display = 'block';
+      connectionStatus.classList.remove('alert-success', 'alert-danger', 'alert-info');
+
+      if (isOnline) {
+        connectionStatus.classList.add('alert-success');
+        connectionStatus.innerHTML = '<strong>Connected to Firebase</strong> - Helper functions ready to use';
+      } else {
+        connectionStatus.classList.add('alert-danger');
+        connectionStatus.innerHTML = `<strong>Not connected to Firebase</strong> - ${errorCode ? `Error: ${errorCode}` : 'Check that emulators are running'}`;
+        
+        // Add a reconnect button
+        connectionStatus.innerHTML += `
+          <div class="mt-2">
+            <button id="reconnect-btn" class="btn btn-sm btn-warning">
+              Try Reconnecting
+            </button>
+          </div>
+        `;
+        
+        // Add event listener for reconnect button
+        setTimeout(() => {
+          const reconnectBtn = document.getElementById('reconnect-btn');
+          if (reconnectBtn) {
+            reconnectBtn.addEventListener('click', async () => {
+              connectionStatus.innerHTML = '<strong>Reconnecting...</strong>';
+              connectionStatus.classList.remove('alert-danger');
+              connectionStatus.classList.add('alert-info');
+              
+              try {
+                // Clear cached initialization
+                window.location.reload();
+              } catch (error) {
+                console.error("Failed to reconnect:", error);
+                showConnectionStatus(false, error.message || 'reconnection-failed');
+              }
+            });
+          }
+        }, 0);
+      }
+    }
+
+    // Generic function to handle form submissions
+    function setupFormHandler(formId, helperFunction, resultContainerId, errorContainerId) {
+      const form = document.getElementById(formId);
+      if (!form) return;
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const resultContainer = document.getElementById(resultContainerId);
+        const errorContainer = document.getElementById(errorContainerId);
+        const resultOutput = document.getElementById(resultContainerId.replace('-result', '-output'));
+        const errorOutput = document.getElementById(errorContainerId.replace('-error', '-error-message'));
+        const spinner = form.querySelector('.spinner-border');
+
+        // Hide previous results/errors
+        resultContainer.style.display = 'none';
+        errorContainer.style.display = 'none';
+
+        // Show spinner
+        spinner.style.display = 'inline-block';
+
+        try {
+          // Check Firebase connection first
+          const { isOnline } = getFirebase();
+          if (!isOnline) {
+            throw new Error('Not connected to Firebase. Make sure emulators are running if using emulator mode.');
+          }
+
+          // Call the appropriate helper function with form data
+          const result = await executeHelperFunction(formId, helperFunction);
+
+          // Display result
+          resultOutput.textContent = JSON.stringify(result, null, 2);
+          resultContainer.style.display = 'block';
+        } catch (error) {
+          // Display error
+          errorOutput.textContent = error.message || 'An unknown error occurred';
+          errorContainer.style.display = 'block';
+        } finally {
+          // Hide spinner
+          spinner.style.display = 'none';
+        }
+      });
+    }
+
+    // Execute the appropriate helper function based on form ID
+    async function executeHelperFunction(formId, helperFunction) {
+      switch (formId) {
+        // Shared Helpers
+        case 'getUserProfile-form':
+          return await sharedHelpers.getUserProfile(document.getElementById('getUserProfile-userId').value);
+
+        case 'updateUserProfile-form': {
+          const userId = document.getElementById('updateUserProfile-userId').value;
+          const displayName = document.getElementById('updateUserProfile-displayName').value || undefined;
+          const photoURL = document.getElementById('updateUserProfile-photoURL').value || undefined;
+          const preferredName = document.getElementById('updateUserProfile-preferredName').value || undefined;
+
+          return await sharedHelpers.updateUserProfile(userId, {
+            displayName,
+            photoURL,
+            preferredName
+          });
+        }
+
+        case 'getClassDetails-form':
+          return await sharedHelpers.getClassDetails(document.getElementById('getClassDetails-classId').value);
+
+        case 'getSessionDetails-form':
+          return await sharedHelpers.getSessionDetails(document.getElementById('getSessionDetails-sessionId').value);
+
+        case 'getAttendanceStatus-form':
+          return await sharedHelpers.getAttendanceStatus(
+            document.getElementById('getAttendanceStatus-sessionId').value,
+            document.getElementById('getAttendanceStatus-studentId').value
+          );
+
+        case 'validateLocationForSession-form':
+          return await sharedHelpers.validateLocationForSession(
+            document.getElementById('validateLocationForSession-sessionId').value,
+            {
+              latitude: parseFloat(document.getElementById('validateLocationForSession-latitude').value),
+              longitude: parseFloat(document.getElementById('validateLocationForSession-longitude').value)
+            }
+          );
+
+        case 'calculateDistance-form':
+          return sharedHelpers.calculateDistance(
+            {
+              latitude: parseFloat(document.getElementById('calculateDistance-lat1').value),
+              longitude: parseFloat(document.getElementById('calculateDistance-lng1').value)
+            },
+            {
+              latitude: parseFloat(document.getElementById('calculateDistance-lat2').value),
+              longitude: parseFloat(document.getElementById('calculateDistance-lng2').value)
+            }
+          );
+
+        // Student Helpers
+        case 'getStudentClasses-form':
+          return await studentHelpers.getStudentClasses(document.getElementById('getStudentClasses-studentId').value);
+
+        case 'joinClassWithCode-form':
+          return await studentHelpers.joinClassWithCode(
+            document.getElementById('joinClassWithCode-studentId').value,
+            document.getElementById('joinClassWithCode-joinCode').value
+          );
+
+        case 'leaveClass-form':
+          return await studentHelpers.leaveClass(
+            document.getElementById('leaveClass-studentId').value,
+            document.getElementById('leaveClass-classId').value
+          );
+
+        case 'getActiveSessionsForStudent-form':
+          return await studentHelpers.getActiveSessionsForStudent(document.getElementById('getActiveSessionsForStudent-studentId').value);
+
+        case 'getStudentAttendanceHistory-form':
+          return await studentHelpers.getStudentAttendanceHistory(
+            document.getElementById('getStudentAttendanceHistory-studentId').value,
+            document.getElementById('getStudentAttendanceHistory-classId').value
+          );
+
+        case 'checkInToSession-form':
+          return await studentHelpers.checkInToSession(
+            document.getElementById('checkInToSession-sessionId').value,
+            document.getElementById('checkInToSession-studentId').value,
+            {
+              latitude: parseFloat(document.getElementById('checkInToSession-latitude').value),
+              longitude: parseFloat(document.getElementById('checkInToSession-longitude').value)
+            }
+          );
+
+        case 'checkOutFromSession-form':
+          return await studentHelpers.checkOutFromSession(
+            document.getElementById('checkOutFromSession-sessionId').value,
+            document.getElementById('checkOutFromSession-studentId').value
+          );
+
+        // Teacher Helpers
+        case 'getTeacherClasses-form':
+          return await teacherHelpers.getTeacherClasses(document.getElementById('getTeacherClasses-teacherId').value);
+
+        case 'createClass-form':
+          return await teacherHelpers.createClass(
+            document.getElementById('createClass-teacherId').value,
+            { name: document.getElementById('createClass-name').value }
+          );
+
+        case 'getClassStudents-form':
+          return await teacherHelpers.getClassStudents(document.getElementById('getClassStudents-classId').value);
+
+        case 'createSession-form':
+          return await teacherHelpers.createAttendanceSession(
+            document.getElementById('createSession-teacherId').value,
+            {
+              classId: document.getElementById('createSession-classId').value,
+              location: {
+                latitude: parseFloat(document.getElementById('createSession-latitude').value),
+                longitude: parseFloat(document.getElementById('createSession-longitude').value)
+              },
+              radius: parseInt(document.getElementById('createSession-radius').value)
+            }
+          );
+
+        case 'getTeacherSessions-form':
+          return await teacherHelpers.getTeacherSessions(document.getElementById('getTeacherSessions-teacherId').value);
+
+        case 'getSessionAttendance-form':
+          return await teacherHelpers.getSessionAttendance(document.getElementById('getSessionAttendance-sessionId').value);
+
+        case 'endSession-form':
+          return await teacherHelpers.endSession(
+            document.getElementById('endSession-sessionId').value,
+            document.getElementById('endSession-teacherId').value
+          );
+
+        default:
+          throw new Error(`Form not recognized: ${formId}`);
+      }
+    }
+
+    // Setup handlers for all forms
+    document.addEventListener('DOMContentLoaded', () => {
+      // Shared Helpers
+      setupFormHandler('getUserProfile-form', 'getUserProfile', 'getUserProfile-result', 'getUserProfile-error');
+      setupFormHandler('updateUserProfile-form', 'updateUserProfile', 'updateUserProfile-result', 'updateUserProfile-error');
+      setupFormHandler('getClassDetails-form', 'getClassDetails', 'getClassDetails-result', 'getClassDetails-error');
+      setupFormHandler('getSessionDetails-form', 'getSessionDetails', 'getSessionDetails-result', 'getSessionDetails-error');
+      setupFormHandler('getAttendanceStatus-form', 'getAttendanceStatus', 'getAttendanceStatus-result', 'getAttendanceStatus-error');
+      setupFormHandler('validateLocationForSession-form', 'validateLocationForSession', 'validateLocationForSession-result', 'validateLocationForSession-error');
+      setupFormHandler('calculateDistance-form', 'calculateDistance', 'calculateDistance-result', 'calculateDistance-error');
+
+      // Student Helpers
+      setupFormHandler('getStudentClasses-form', 'getStudentClasses', 'getStudentClasses-result', 'getStudentClasses-error');
+      setupFormHandler('joinClassWithCode-form', 'joinClassWithCode', 'joinClassWithCode-result', 'joinClassWithCode-error');
+      setupFormHandler('leaveClass-form', 'leaveClass', 'leaveClass-result', 'leaveClass-error');
+      setupFormHandler('getActiveSessionsForStudent-form', 'getActiveSessionsForStudent', 'getActiveSessionsForStudent-result', 'getActiveSessionsForStudent-error');
+      setupFormHandler('getStudentAttendanceHistory-form', 'getStudentAttendanceHistory', 'getStudentAttendanceHistory-result', 'getStudentAttendanceHistory-error');
+      setupFormHandler('checkInToSession-form', 'checkInToSession', 'checkInToSession-result', 'checkInToSession-error');
+      setupFormHandler('checkOutFromSession-form', 'checkOutFromSession', 'checkOutFromSession-result', 'checkOutFromSession-error');
+
+      // Teacher Helpers
+      setupFormHandler('getTeacherClasses-form', 'getTeacherClasses', 'getTeacherClasses-result', 'getTeacherClasses-error');
+      setupFormHandler('createClass-form', 'createClass', 'createClass-result', 'createClass-error');
+      setupFormHandler('getClassStudents-form', 'getClassStudents', 'getClassStudents-result', 'getClassStudents-error');
+      setupFormHandler('createSession-form', 'createSession', 'createSession-result', 'createSession-error');
+      setupFormHandler('getTeacherSessions-form', 'getTeacherSessions', 'getTeacherSessions-result', 'getTeacherSessions-error');
+      setupFormHandler('getSessionAttendance-form', 'getSessionAttendance', 'getSessionAttendance-result', 'getSessionAttendance-error');
+      setupFormHandler('endSession-form', 'endSession', 'endSession-result', 'endSession-error');
+    });
+  </script>
+</body>
+</html> 

@@ -10,7 +10,7 @@ import { getFirebase } from './firebase-init.js';
 /**
  * Returns all classes created by a specific teacher.
  * @param {string} teacherId - The ID of the teacher.
- * @returns {Promise<Object>} - List of classes.
+ * @returns {Promise<Object>} - Result containing a list of classes with their additional data.
  */
 export async function getTeacherClasses(teacherId) {
   try {
@@ -54,49 +54,112 @@ export async function getTeacherClasses(teacherId) {
 }
 
 /**
- * Creates a new class with teacher as the owner.
- * @param {string} teacherId - The ID of the teacher creating the class.
- * @param {Object} classData - The data for the new class.
- * @param {string} classData.name - The name of the class.
- * @returns {Promise<Object>} - Result of the class creation.
+ * Creates a new class.
+ * @param {Object|string} classDataOrTeacherId - Either the class data object (which may include teacherId) or just the teacher ID.
+ * @param {string|Object} [teacherIdOrNull] - The ID of the teacher (if first parameter is classData) or the class data object.
+ * @returns {Promise<Object>} - Result of the operation with created class ID.
  */
-export async function createClass(teacherId, classData) {
+export async function createClass(classDataOrTeacherId, teacherIdOrNull = null) {
   try {
     const { db, firebase } = getFirebase();
+    
+    // Handle different parameter patterns
+    let classData;
+    let teacherId;
+    
+    if (typeof classDataOrTeacherId === 'object') {
+      // New format: createClass({ teacherId, name, ... })
+      classData = classDataOrTeacherId;
+      teacherId = classDataOrTeacherId.teacherId || teacherIdOrNull;
+    } else if (typeof classDataOrTeacherId === 'string') {
+      // Old format: createClass(teacherId, { name, ... })
+      teacherId = classDataOrTeacherId;
+      classData = teacherIdOrNull || {};
+    } else {
+      throw new Error('Invalid parameters provided');
+    }
+    
+    if (!classData || typeof classData !== 'object') {
+      throw new Error('Class data is required');
+    }
+    
+    if (!classData.name) {
+      throw new Error('Class name is required');
+    }
     
     if (!teacherId) {
       throw new Error('Teacher ID is required');
     }
     
-    if (!classData || !classData.name) {
-      throw new Error('Class name is required');
+    // Generate a unique ID for the class if not provided
+    const classId = classData.id || `class_${Date.now()}_${Math.floor(Math.random() * 10000)}`;
+    
+    // Always generate a join code for the class
+    const joinCode = classData.joinCode || generateJoinCode();
+    console.log(`Generated join code: ${joinCode} for class ID: ${classId}`);
+    
+    // Prepare the class data - exclude properties we'll set ourselves
+    const { teacherId: _, id: __, ...safeClassData } = classData;
+    
+    // Extract additional data from classData
+    // If classData.additional exists, use it, otherwise gather all "extra" properties
+    let additional = {};
+    
+    if (classData.additional && typeof classData.additional === 'object') {
+      // Use the provided additional object
+      additional = { ...classData.additional };
+    } else {
+      // Auto-collect additional fields (anything not in our standard fields)
+      const standardFields = ['name', 'description', 'schedule', 'location', 'teacherId', 'joinCode'];
+      Object.keys(classData).forEach(key => {
+        if (!standardFields.includes(key) && key !== 'additional') {
+          additional[key] = classData[key];
+        }
+      });
     }
     
-    // Generate a join code
-    const joinCode = generateJoinCode();
-    
-    // Create the class document
-    const classRef = db.collection('classes').doc();
-    
-    const fullClassData = {
-      classId: classRef.id, // Store ID inside the document for easier reference
-      name: classData.name,
-      teacherId,
-      joinCode,
-      created_at: firebase.firestore.FieldValue.serverTimestamp(),
-      description: classData.description || null,
-      location: classData.location || null,
-      schedule: classData.schedule || null
+    // Add creation metadata to additional data
+    additional.creationInfo = {
+      timestamp: new Date().toISOString(),
+      method: typeof classDataOrTeacherId === 'object' ? 'object' : 'separate'
     };
     
-    await classRef.set(fullClassData);
+    // Prepare the final class data
+    const newClassData = {
+      id: classId,
+      name: classData.name,
+      description: classData.description || '',
+      schedule: classData.schedule || '',
+      location: classData.location || '',
+      teacherId: teacherId,
+      joinCode: joinCode, // Always set the join code
+      created_at: firebase.firestore.FieldValue.serverTimestamp(),
+      status: 'active',
+      additional: additional
+    };
+    
+    // Create the class document
+    await db.collection('classes').doc(classId).set(newClassData);
+    
+    // Add this class to the teacher's classes collection
+    await db.collection(`users/${teacherId}/classes`).doc(classId).set({
+      id: classId,
+      name: classData.name,
+      role: 'teacher',
+      joinCode: joinCode, // Store join code in teacher's classes as well
+      created_at: firebase.firestore.FieldValue.serverTimestamp()
+    });
     
     return {
       success: true,
       data: {
-        ...fullClassData,
-        classId: classRef.id
-      }
+        id: classId,
+        name: classData.name,
+        teacherId: teacherId,
+        joinCode: joinCode, // Return the join code to the caller
+        additional: additional
+      },
+      message: 'Class created successfully'
     };
   } catch (error) {
     console.error('Error creating class:', error);
@@ -112,6 +175,7 @@ export async function createClass(teacherId, classData) {
  * @param {string} classId - The ID of the class to update.
  * @param {string} teacherId - The ID of the teacher updating the class.
  * @param {Object} updatedData - The updated class data.
+ * @param {Object} [updatedData.additional] - Container for any additional fields.
  * @returns {Promise<Object>} - Result of the update operation.
  */
 export async function updateClassDetails(classId, teacherId, updatedData) {
@@ -145,6 +209,18 @@ export async function updateClassDetails(classId, teacherId, updatedData) {
     delete safeUpdatedData.classId;
     delete safeUpdatedData.teacherId;
     delete safeUpdatedData.created_at;
+    
+    // Process additional data - merge with existing if present
+    if (updatedData.additional) {
+      if (classData.additional) {
+        // If additional data already exists, merge with it
+        safeUpdatedData.additional = {
+          ...classData.additional,
+          ...updatedData.additional
+        };
+      }
+      // If no existing additional data, use as is
+    }
     
     // Add last updated timestamp
     safeUpdatedData.lastUpdated = firebase.firestore.FieldValue.serverTimestamp();
@@ -248,10 +324,20 @@ export async function getClassStudents(classId, teacherId) {
       throw new Error('You do not have permission to view students in this class');
     }
     
-    // Get all students in the class
-    const studentsSnapshot = await db.collection(`classes/${classId}/students`).get();
+    let studentIds = [];
     
-    if (studentsSnapshot.empty) {
+    // First check if there's a subcollection of students (original implementation)
+    const studentsSnapshot = await db.collection(`classes/${classId}/students`).get();
+    if (!studentsSnapshot.empty) {
+      studentIds = studentsSnapshot.docs.map(doc => doc.id);
+    } 
+    // If subcollection is empty, check if there's a student_ids array in the class document
+    else if (classData.student_ids && Array.isArray(classData.student_ids)) {
+      studentIds = classData.student_ids;
+      console.log('Using student_ids array field:', studentIds);
+    }
+    
+    if (studentIds.length === 0) {
       return {
         success: true,
         data: []
@@ -259,9 +345,16 @@ export async function getClassStudents(classId, teacherId) {
     }
     
     // Get the user details for each student
-    const studentDetailPromises = studentsSnapshot.docs.map(async (doc) => {
-      const studentId = doc.id;
-      const enrollmentData = doc.data();
+    const studentDetailPromises = studentIds.map(async (studentId) => {
+      let enrollmentData = {};
+      
+      // If we're using the subcollection approach, get any enrollment data
+      if (!studentsSnapshot.empty) {
+        const studentDoc = studentsSnapshot.docs.find(doc => doc.id === studentId);
+        if (studentDoc) {
+          enrollmentData = studentDoc.data();
+        }
+      }
       
       try {
         const userDoc = await db.collection('users').doc(studentId).get();
@@ -533,6 +626,7 @@ export async function getClassAttendanceHistory(classId, teacherId) {
  * @param {string} sessionData.classId - The ID of the class.
  * @param {Object} sessionData.location - The location data (latitude, longitude).
  * @param {number} sessionData.radius - The radius in meters for valid check-ins.
+ * @param {Object} [sessionData.additional={}] - Container for any additional fields.
  * @returns {Promise<Object>} - Result of the session creation.
  */
 export async function createAttendanceSession(teacherId, sessionData) {
@@ -565,10 +659,42 @@ export async function createAttendanceSession(teacherId, sessionData) {
     }
     
     const classData = classDoc.data();
+    console.log(`DETAILED DEBUG - Creating session for class ${sessionData.classId}:`, {
+      providedTeacherId: teacherId,
+      classData: {
+        teacherId: classData.teacherId,
+        teacherUid: classData.teacherUid,
+        name: classData.name,
+        availableKeys: Object.keys(classData)
+      }
+    });
     
-    // Check if the teacher is the owner of the class
-    if (classData.teacherId !== teacherId) {
+    // More extensive teacher permission check - check all possible teacher ID fields in the class document
+    const isTeacherAuthorized = (
+      // Check standard fields
+      teacherId === classData.teacherId || 
+      teacherId === classData.teacherUid ||
+      // Check possible alternate formats/keys
+      teacherId === classData.teacher_id || 
+      teacherId === classData.teacher_uid ||
+      // Check if there's a "teacher" object with an id field
+      (classData.teacher && teacherId === classData.teacher.id) ||
+      (classData.teacher && teacherId === classData.teacher.uid) ||
+      // Check nested fields in additional data
+      (classData.additional && teacherId === classData.additional.teacherId) ||
+      (classData.additional && teacherId === classData.additional.teacherUid)
+    );
+    
+    if (!isTeacherAuthorized) {
+      console.error('Teacher authorization failed:', {
+        providedTeacherId: teacherId,
+        classTeacherId: classData.teacherId,
+        classTeacherUid: classData.teacherUid,
+        fullClassData: classData
+      });
       throw new Error('You do not have permission to create sessions for this class');
+    } else {
+      console.log(`Teacher ${teacherId} authorized for class ${sessionData.classId}`);
     }
     
     // Check for already active sessions for this class
@@ -578,11 +704,59 @@ export async function createAttendanceSession(teacherId, sessionData) {
       .get();
     
     if (!activeSessionsSnapshot.empty) {
-      throw new Error('There is already an active session for this class');
+      console.log(`Found ${activeSessionsSnapshot.size} active sessions for class ${sessionData.classId}, checking if they're valid...`);
+      
+      // Verify if these sessions are really active by checking their endTime
+      let hasActiveSession = false;
+      const sessionsToFix = [];
+      
+      for (const sessionDoc of activeSessionsSnapshot.docs) {
+        const sessionData = sessionDoc.data();
+        console.log(`Checking session ${sessionDoc.id}:`, {
+          endTime: sessionData.endTime,
+          status: sessionData.status
+        });
+        
+        // If endTime is null or missing, consider it active
+        if (!sessionData.endTime) {
+          hasActiveSession = true;
+          console.log(`Session ${sessionDoc.id} is truly active (no endTime)`);
+        } else {
+          sessionsToFix.push(sessionDoc.ref);
+          console.log(`Session ${sessionDoc.id} has endTime but is marked active - will fix`);
+        }
+      }
+      
+      if (hasActiveSession) {
+        throw new Error('There is already an active session for this class');
+      } else if (sessionsToFix.length > 0) {
+        // All sessions have end times, they might not be properly marked as ended
+        // Let's fix this by updating their status
+        const batch = db.batch();
+        sessionsToFix.forEach(docRef => {
+          batch.update(docRef, { 
+            status: 'ended',
+            lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        });
+        await batch.commit();
+        console.log(`Fixed ${sessionsToFix.length} incorrectly active sessions for class ${sessionData.classId}`);
+      }
     }
+    
+    // Extract additional data if it exists
+    const additional = sessionData.additional || {};
     
     // Create the session
     const sessionRef = db.collection('sessions').doc();
+    
+    // Add the class data reference for easier debugging
+    additional.classReference = {
+      id: sessionData.classId,
+      teacherId: classData.teacherId || null,
+      teacherUid: classData.teacherUid || null,
+      name: classData.name || 'Unknown Class'
+    };
     
     const fullSessionData = {
       sessionId: sessionRef.id, // Store ID inside the document for easier reference
@@ -596,10 +770,12 @@ export async function createAttendanceSession(teacherId, sessionData) {
         sessionData.location.longitude
       ),
       radius: sessionData.radius,
+      additional: additional,
       created_at: firebase.firestore.FieldValue.serverTimestamp()
     };
     
     await sessionRef.set(fullSessionData);
+    console.log(`Session ${sessionRef.id} created successfully for class ${sessionData.classId} by teacher ${teacherId}`);
     
     return {
       success: true,
@@ -747,9 +923,10 @@ export async function endAttendanceSession(sessionId, teacherId) {
  * @param {string} teacherId - The ID of the teacher.
  * @param {Object} location - The location data (latitude, longitude).
  * @param {number} radius - The radius in meters for valid check-ins.
+ * @param {Object} [additionalData={}] - Any additional data to store with the session.
  * @returns {Promise<Object>} - Result of the update operation.
  */
-export async function updateSessionLocation(sessionId, teacherId, location, radius) {
+export async function updateSessionLocation(sessionId, teacherId, location, radius, additionalData = {}) {
   try {
     const { db, firebase } = getFirebase();
     
@@ -790,16 +967,32 @@ export async function updateSessionLocation(sessionId, teacherId, location, radi
       throw new Error('Cannot update location for an inactive session');
     }
     
+    // Process existing additional data
+    let updatedAdditionalData = additionalData;
+    if (sessionData.additional) {
+      // Merge with existing additional data
+      updatedAdditionalData = {
+        ...sessionData.additional,
+        ...additionalData
+      };
+    }
+    
     // Update session location and radius
     await db.collection('sessions').doc(sessionId).update({
       location: new firebase.firestore.GeoPoint(location.latitude, location.longitude),
       radius,
+      additional: updatedAdditionalData,
       lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     });
     
     return {
       success: true,
-      message: 'Session location updated successfully'
+      message: 'Session location updated successfully',
+      data: {
+        location,
+        radius,
+        additional: updatedAdditionalData
+      }
     };
   } catch (error) {
     console.error('Error updating session location:', error);
@@ -933,9 +1126,10 @@ export async function getSessionAttendance(sessionId, teacherId) {
  * @param {string} studentId - The ID of the student.
  * @param {string} status - The new attendance status.
  * @param {string} teacherId - The ID of the teacher.
+ * @param {Object} [additionalData={}] - Any additional data to store with the attendance record.
  * @returns {Promise<Object>} - Result of the override operation.
  */
-export async function manuallyMarkAttendance(sessionId, studentId, status, teacherId) {
+export async function manuallyMarkAttendance(sessionId, studentId, status, teacherId, additionalData = {}) {
   try {
     const { db, firebase } = getFirebase();
     
@@ -997,13 +1191,27 @@ export async function manuallyMarkAttendance(sessionId, studentId, status, teach
       // For other statuses, create or update the attendance record
       const now = firebase.firestore.FieldValue.serverTimestamp();
       
+      // Handle additional data
+      let mergedAdditionalData = additionalData;
+      
       if (attendanceDoc.exists) {
         // Update existing attendance record
+        const existingData = attendanceDoc.data();
+        
+        // Merge additional data with existing additional data if present
+        if (existingData.additional) {
+          mergedAdditionalData = {
+            ...existingData.additional,
+            ...additionalData
+          };
+        }
+        
         const updateData = {
           status,
           lastUpdated: now,
           manuallyUpdated: true,
-          manuallyUpdatedBy: teacherId
+          manuallyUpdatedBy: teacherId,
+          additional: mergedAdditionalData
         };
         
         await attendanceRef.update(updateData);
@@ -1018,7 +1226,8 @@ export async function manuallyMarkAttendance(sessionId, studentId, status, teach
           isGpsVerified: status === 'verified',
           manuallyCreated: true,
           manuallyCreatedBy: teacherId,
-          lastUpdated: now
+          lastUpdated: now,
+          additional: mergedAdditionalData
         };
         
         await attendanceRef.set(attendanceData);
@@ -1027,7 +1236,9 @@ export async function manuallyMarkAttendance(sessionId, studentId, status, teach
     
     return {
       success: true,
-      message: `Student attendance successfully marked as '${status}'`
+      message: `Student attendance successfully marked as '${status}'`,
+      status: status,
+      additionalData: additionalData
     };
   } catch (error) {
     console.error('Error manually marking attendance:', error);
@@ -1163,22 +1374,3 @@ function generateJoinCode() {
 export async function endSession(sessionId, teacherId) {
   return endAttendanceSession(sessionId, teacherId);
 }
-
-// Export all functions to ensure they're available where needed
-// export {
-//   getTeacherClasses,
-//   createClass,
-//   updateClassDetails,
-//   generateClassJoinCode,
-//   getClassStudents,
-//   removeStudentFromClass,
-//   getClassAttendanceHistory,
-//   createAttendanceSession,
-//   startAttendanceSession,
-//   endAttendanceSession,
-//   updateSessionLocation,
-//   getSessionAttendance,
-//   manuallyMarkAttendance,
-//   //getTeacherSessions
-//   // endSession is already exported with its function declaration
-// };

@@ -3,492 +3,1415 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CleO - Admin Test Data Generator</title>
+  <title>CleO Admin Test</title>
+  
+  <!-- Bootstrap CSS -->
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Chart.js for Data Visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="../CSS/admin-test.css">
+
+  <!-- EmailJS SDK -->
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <style>
-    body { 
-      padding-bottom: 50px;
-      background-color: #f8f9fa;
+    /* API Key Section and Main Content Transitions */
+    #main-content {
+      opacity: 0;
+      transition: opacity 0.5s ease-in-out;
+      display: none;
     }
-    
-    .header {
-      background-color: #343a40;
-      color: white;
-      padding: 2rem 0;
-      margin-bottom: 2rem;
+
+    #main-content.visible {
+      opacity: 1;
     }
-    
-    .btn-primary {
-      background-color: #0d6efd;
-    }
-    
-    .btn-success {
-      background-color: #198754;
-    }
-    
-    .test-data-container {
-      background-color: #fff;
-      border-radius: 5px;
-      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-      padding: 20px;
-      margin-bottom: 2rem;
-    }
-    
-    .data-structure-container {
-      margin-top: 3rem;
-    }
-    
-    .collection-card {
-      background-color: #f8f9fa;
-      border: 1px solid #dee2e6;
-      border-radius: 5px;
-      margin-bottom: 2rem;
-      overflow: hidden;
-    }
-    
-    .collection-header {
-      background-color: #0d6efd;
-      color: white;
-      padding: 10px 15px;
-      font-weight: bold;
-    }
-    
-    .subcollection-header {
-      background-color: #6c757d;
-      color: white;
-      padding: 8px 15px;
-      font-weight: bold;
-      margin-top: 15px;
-    }
-    
-    .document-example {
-      background-color: #fff;
-      border: 1px solid #dee2e6;
-      border-radius: 4px;
-      padding: 10px;
-      margin: 10px 0;
-      font-family: monospace;
-      font-size: 0.9rem;
-      white-space: pre-wrap;
-    }
-    
-    .document-field {
-      padding: 2px 0;
-    }
-    
-    .field-name {
-      font-weight: bold;
-      color: #343a40;
-    }
-    
-    .field-type {
-      font-size: 0.8rem;
-      color: #6c757d;
-      margin-left: 0.5rem;
-    }
-    
-    .field-description {
-      font-size: 0.85rem;
-      color: #495057;
-      margin-left: 0.5rem;
-    }
-    
-    .emoji-icon {
-      margin-right: 5px;
-    }
-    
-    .warning-banner {
-      background-color: #e25555;
-      color: white;
-      padding: 10px;
+
+    #api-key-section {
       position: fixed;
-      bottom: 0;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1000; /* Higher by default */
+      background-color: var(--dark-bg);
+      transition: opacity 0.5s ease-in-out, visibility 0.5s;
+      display: flex; 
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #api-key-section.hiding {
+      opacity: 0;
+      visibility: hidden;
+      z-index: 5; /* Lower when hiding */
+    }
+    
+    /* Loading indicator for initial page load */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
       left: 0;
       right: 0;
-      text-align: center;
-      z-index: 9999;
+      bottom: 0;
+      background-color: rgba(0, 0, 0, 0.9);
+      z-index: 2000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+
+    .loading-spinner {
+      width: 50px;
+      height: 50px;
+      margin-bottom: 20px;
+    }
+
+    .loading-text {
+      font-size: 18px;
+      color: #ddd;
+    }
+    
+    .success-notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      max-width: 350px;
+      background-color: #28a745;
+      color: white;
+      border-radius: 5px;
+      padding: 15px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      z-index: 1500;
+      opacity: 0;
+      transform: translateX(50px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    .success-notification.show {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .progress-bar-container {
+      background-color: rgba(255, 255, 255, 0.3);
+      border-radius: 5px;
+      margin-top: 10px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 5px;
+      width: 100%;
+      background-color: white;
+      animation: countdown 5s
+    }
+
+    @keyframes countdown {
+      from { width: 100%; }
+      to { width: 0%; }
     }
   </style>
 </head>
-<body>
-  <!-- Header -->
-  <header class="header text-center">
+<body class="dark-theme">
+  <!-- API Key Authentication Section -->
+  <div id="api-key-section" class="api-key-container">
+    <h1 class="automagical-title mb-4">CleO Admin Test</h1>
+    <div class="api-key-box">
+      <p class="text-center mb-3">Enter Developer API Key</p>
+      <input type="password" id="apiKeyInput" class="form-control mb-3" placeholder="API Key">
+      <div class="error-message" id="apiKeyError"></div>
+      <button id="submitApiKey" class="btn btn-gradient w-100 mb-2">
+        Access Admin Tools
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+      </button>
+      <button id="requestApiKey" class="btn btn-secondary w-100">
+        Request New Key
+        <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="display: none;"></span>
+      </button>
+      <div id="apiKeyStatus" class="mt-3 text-center" style="min-height: 20px;"></div>
+    </div>
+    <div class="gradient-bar"></div>
+  </div>
+
+  <div id="successNotification" class="success-notification">
+    <div><i class="bi bi-check-circle-fill me-2"></i> <strong>Authentication Successful</strong></div>
+    <p class="mb-1 mt-2">API key validated. Loading admin tools...</p>
+    <div class="progress-bar-container">
+      <div class="progress-bar"></div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div id="main-content">
+    <nav class="navbar navbar-expand-lg navbar-dark sticky-top">
+      <div class="container">
+        <a class="navbar-brand automagical-title-small" href="#">CleO Admin</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav ms-auto">
+            <li class="nav-item">
+              <a class="nav-link" href="#data-section">Data Generator</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#data-visualization-section">Data Visualization</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="#data-structure-section">Data Structure</a>
+            </li>
+            <li class="nav-item dropdown">
+              <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                Tools
+              </a>
+              <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+                <li><a class="dropdown-item" href="#" id="export-data-btn"><i class="bi bi-download me-2"></i>Export Data</a></li>
+                <li><a class="dropdown-item" href="#" id="import-data-btn"><i class="bi bi-upload me-2"></i>Import Data</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="#" id="sign-out-btn"><i class="bi bi-box-arrow-left me-2"></i>Sign Out</a></li>
+                <li><a class="dropdown-item" href="#" id="clear-all-btn"><i class="bi bi-trash3 me-2"></i>Clear All Data</a></li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+
+    <div class="dashboard-container">
+      <div class="dashboard-header">
+        <h1><i class="bi bi-database-gear"></i> Test Data Generator</h1>
+        <p>Create and manage test data for CleO development and testing</p>
+      </div>
+      
+      <section id="data-section" class="mb-5">
+        <div class="row">
+          <div class="col-md-6 mx-auto">
+            <div class="card">
+              <div class="card-header">
+                <h5 class="mb-0">Admin User Creation</h5>
+              </div>
+              <div class="card-body">
+                <p>Generate test data for the CleO application. Choose from options below:</p>
+                
+                <div class="steps-container mb-4">
+                  <div class="step-item">
+                    <div class="step-indicator" id="step1">1</div>
+                    <span class="step-text" id="step1-text">Select Data Options</span>
+                  </div>
+                  <div class="step-item">
+                    <div class="step-indicator" id="step2">2</div>
+                    <span class="step-text" id="step2-text">Generate Data</span>
+                  </div>
+                  <div class="step-item">
+                    <div class="step-indicator" id="step3">3</div>
+                    <span class="step-text" id="step3-text">Verify Results</span>
+                  </div>
+                </div>
+                
+                <form id="data-options-form" class="mb-3">
+                  <div class="mb-3">
+                    <label for="numTeachers" class="form-label">Number of Teachers</label>
+                    <div class="tooltip-container">
+                      <input type="number" class="form-control" id="numTeachers" value="2" min="0" max="10">
+                      <div class="tooltip-content">Generate between 0-10 teacher accounts</div>
+                    </div>
+                  </div>
+                  <div class="mb-3">
+                    <label for="numStudents" class="form-label">Number of Students</label>
+                    <div class="tooltip-container">
+                      <input type="number" class="form-control" id="numStudents" value="10" min="0" max="50">
+                      <div class="tooltip-content">Generate between 0-50 student accounts</div>
+                    </div>
+                  </div>
+                  <div class="mb-3">
+                    <label for="numClasses" class="form-label">Number of Classes</label>
+                    <div class="tooltip-container">
+                      <input type="number" class="form-control" id="numClasses" value="3" min="0" max="10">
+                      <div class="tooltip-content">Generate between 0-10 classes</div>
+                    </div>
+                  </div>
+                </form>
+
+                <div class="d-grid gap-2">
+                  <button id="create-admin-button" class="btn btn-gradient">
+                    <i class="bi bi-person-plus me-2"></i>Create Admin User Only
+                  </button>
+                  <button id="create-all-button" class="btn btn-success">
+                    <i class="bi bi-database-add me-2"></i>Create Complete Test Dataset
+                  </button>
+                </div>
+                
+                <div class="operation-progress mt-3" style="display: none;">
+                  <div class="progress-bar" style="width: 0%"></div>
+                </div>
+                <small id="progress-text" class="text-muted" style="display: none;">Initializing...</small>
+                
+                <div class="mt-3">
+                  <button id="test-connection-btn" class="btn btn-warning">
+                    <i class="bi bi-wifi me-2"></i>Test Connection
+                  </button>
+                  <button id="clear-cache-btn" class="btn btn-outline-danger ms-2">
+                    <i class="bi bi-trash3 me-2"></i>Clear Cache & Reload
+                  </button>
+                </div>
+                <div class="mt-3">
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="emulator-switch">
+                    <label class="form-check-label" for="emulator-switch">
+                      Use Firebase Emulator
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="row mt-3">
+          <div class="col-md-12">
+            <div id="admin-status" style="display: block;"></div>
+          </div>
+        </div>
+      </section>
+      
+      <!-- Data Visualization Section -->
+      <section id="data-visualization-section" class="mb-5">
+        <div class="dashboard-subheader mb-4 d-flex justify-content-between align-items-center">
+          <div>
+            <h2><i class="bi bi-graph-up"></i> Data Visualization</h2>
+            <p>Visual representation of the generated test data</p>
+          </div>
+          <button id="refresh-sessions-btn" class="btn btn-primary">
+            <i class="bi bi-arrow-clockwise me-1"></i>Refresh Sessions
+          </button>
+        </div>
+        
+        <div class="row">
+          <div class="col-md-6 mb-4">
+            <div class="chart-container">
+              <canvas id="userDistributionChart"></canvas>
+            </div>
+          </div>
+          <div class="col-md-6 mb-4">
+            <div class="chart-container">
+              <canvas id="classAttendanceChart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-12">
+            <div class="chart-container">
+              <canvas id="sessionTimelineChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      <section id="output-section" class="mb-5">
+        <div class="row">
+          <div class="col-md-12">
+            <div class="card">
+              <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="bi bi-file-code me-2"></i>Generated Test Data</h5>
+                <div>
+                  <button id="filter-data-btn" class="btn btn-light me-2">
+                    <i class="bi bi-funnel me-1"></i>Filter
+                  </button>
+                  <button id="copy-data-btn" class="btn btn-light">
+                    <i class="bi bi-clipboard me-1"></i>Copy to Clipboard
+                  </button>
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="data-management-panel mb-3" id="filter-panel" style="display: none;">
+                  <div class="row g-2">
+                    <div class="col-md-3">
+                      <select class="form-select data-filter" id="entity-filter">
+                        <option value="all">All Entities</option>
+                        <option value="users">Users Only</option>
+                        <option value="classes">Classes Only</option>
+                        <option value="sessions">Sessions Only</option>
+                      </select>
+                    </div>
+                    <div class="col-md-3">
+                      <select class="form-select data-filter" id="role-filter">
+                        <option value="all">All Roles</option>
+                        <option value="admin">Admin Only</option>
+                        <option value="teacher">Teachers Only</option>
+                        <option value="student">Students Only</option>
+                      </select>
+                    </div>
+                    <div class="col-md-4">
+                      <input type="text" class="form-control data-filter" id="search-filter" placeholder="Search...">
+                    </div>
+                    <div class="col-md-2">
+                      <button id="apply-filter-btn" class="btn btn-gradient w-100">Apply</button>
+                    </div>
+                  </div>
+                </div>
+                <pre id="data-output">No data generated yet. Click "Create Complete Test Dataset" to generate data.</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      
+      <section id="data-structure-section">
+        <div class="row">
+          <div class="col-md-12">
+            <div class="card">
+              <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-diagram-3 me-2"></i>Data Structure</h5>
+              </div>
+              <div class="card-body data-structure">
+                <pre><code>users/
+  ├─ {userId}/
+  │   ├─ uid: string
+  │   ├─ email: string
+  │   ├─ displayName: string 
+  │   ├─ role: string ("admin", "teacher", or "student")
+  │   └─ created_at: timestamp
+  
+classes/
+  ├─ {classId}/
+  │   ├─ name: string
+  │   ├─ teacherId: string (reference to user)
+  │   ├─ joinCode: string
+  │   ├─ created_at: timestamp
+  │   └─ students/
+  │       └─ {studentId}: { joinDate: timestamp }
+  
+sessions/
+  ├─ {sessionId}/
+  │   ├─ classId: string (reference to class)
+  │   ├─ teacherId: string (reference to user)
+  │   ├─ name: string
+  │   ├─ status: string ("active", "ended")
+  │   ├─ start_time: timestamp
+  │   ├─ end_time: timestamp
+  │   ├─ location: geopoint
+  │   ├─ radius: number (in meters)
+  │   └─ attendance/
+  │       └─ {studentId}: { 
+  │             status: string,
+  │             checkInTime: timestamp,
+  │             checkOutTime: timestamp,
+  │             location: geopoint
+  │          }
+  
+userClasses/
+  ├─ {userId}/
+  │   └─ classes/
+  │       └─ {classId}: { 
+  │             className: string,
+  │             teacherName: string,
+  │             joinDate: timestamp
+  │          }</code></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div id="connection-status" class="connection-status online" style="display: none;">
+    🟢 Connected
+  </div>
+
+  <!-- Import/Export Modal -->
+  <div class="modal fade" id="importExportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="importExportModalTitle">Import/Export Data</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="importExportModalBody">
+          <!-- Content will be dynamically inserted here -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-gradient" id="importExportActionBtn">Continue</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fixed-bottom p-2 text-center">
     <div class="container">
-      <h1>CleO Test Data Generator</h1>
-      <p class="lead">Use the buttons below to create test data for the CleO application</p>
-    </div>
-  </header>
-
-  <!-- Main Content Container -->
-  <div class="container">
-    <div class="row">
-      <div class="col-md-8 mx-auto text-center mb-4">
-        <p>Click "Admin User" to create just the admin user or "Complete Test Dataset" to create users, classes, sessions, and attendance records</p>
-        
-        <div class="d-grid gap-2 d-md-block">
-          <button id="create-admin-button" class="btn btn-primary btn-lg mx-2">Create Admin User Only</button>
-          <button id="create-all-button" class="btn btn-success btn-lg mx-2">Create Complete Test Dataset</button>
-        </div>
-        
-        <div id="admin-status" class="mt-4"></div>
-        <div id="admin-error" class="mt-4"></div>
-      </div>
-    </div>
-    
-    <!-- Data Structure Overview -->
-    <div class="row data-structure-container">
-      <div class="col-12">
-        <h2 class="text-center mb-4">CleO Data Structure</h2>
-        <p class="text-muted text-center mb-4">This shows how data is organized in the Firestore database</p>
-        
-        <!-- Users Collection -->
-        <div class="collection-card">
-          <div class="collection-header">
-            <span class="emoji-icon">👤</span> /users/{userId}
-          </div>
-          <div class="card-body">
-            <p>Each document represents a user account:</p>
-            
-            <div class="document-field">
-              <span class="field-name">uid:</span>
-              <span class="field-type">String</span>
-              <span class="field-description">- User ID (matches document ID). For admin user, this is explicitly set to "admin"</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">email:</span>
-              <span class="field-type">String</span>
-              <span class="field-description">- User's email address</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">displayName:</span>
-              <span class="field-type">String</span>
-              <span class="field-description">- User's full name</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">role:</span>
-              <span class="field-type">String</span>
-              <span class="field-description">- 'admin', 'teacher', or 'student'</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">created_at:</span>
-              <span class="field-type">Timestamp</span>
-              <span class="field-description">- When the user was created</span>
-            </div>
-            
-            <div class="document-example">
-              <h6 class="mb-2">Example Document:</h6>
-<pre>{
-  "uid": "admin",  // For admin user, explicitly set to "admin"
-  "email": "admin@cleouniversity.edu",
-  "displayName": "System Administrator",
-  "role": "admin",
-  "created_at": "2025-04-18T12:30:45Z"
-}</pre>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Classes Collection -->
-        <div class="collection-card">
-          <div class="collection-header">
-            <span class="emoji-icon">📚</span> /classes/{classId}
-          </div>
-          <div class="card-body">
-            <p>Each document represents a class:</p>
-            
-            <div class="document-field">
-              <span class="field-name">classId:</span>
-              <span class="field-type">String</span>
-              <span class="field-description">- Class ID (matches document ID)</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">name:</span>
-              <span class="field-type">String</span>
-              <span class="field-description">- Name of the class (e.g., "Computer Science 101")</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">teacherId:</span>
-              <span class="field-type">String</span>
-              <span class="field-description">- Reference to the teacher's user ID</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">joinCode:</span>
-              <span class="field-type">String</span>
-              <span class="field-description">- Short code for students to join the class</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">created_at:</span>
-              <span class="field-type">Timestamp</span>
-              <span class="field-description">- When the class was created</span>
-            </div>
-            
-            <div class="document-example">
-              <h6 class="mb-2">Example Document:</h6>
-<pre>{
-  "classId": "cs101",
-  "name": "Computer Science 101",
-  "teacherId": "teacher123",
-  "joinCode": "ABC123",
-  "created_at": "2025-04-18T10:15:30Z"
-}</pre>
-            </div>
-            
-            <div class="subcollection-header">
-              <span class="emoji-icon">👨‍🎓</span> /classes/{classId}/students/{studentId}
-            </div>
-            <p class="mt-2">Each document in this subcollection represents a student enrolled in the class:</p>
-            
-            <div class="document-field">
-              <span class="field-name">joinDate:</span>
-              <span class="field-type">Timestamp</span>
-              <span class="field-description">- When the student joined the class</span>
-            </div>
-            
-            <div class="document-example">
-              <h6 class="mb-2">Example Document:</h6>
-<pre>{
-  "joinDate": "2025-04-15T09:30:00Z"
-}</pre>
-            </div>
-          </div>
-        </div>
-        
-        <!-- Sessions Collection -->
-        <div class="collection-card">
-          <div class="collection-header">
-            <span class="emoji-icon">📅</span> /sessions/{sessionId}
-          </div>
-          <div class="card-body">
-            <p>Each document represents an attendance session:</p>
-            
-            <div class="document-field">
-              <span class="field-name">sessionId:</span>
-              <span class="field-type">String</span>
-              <span class="field-description">- Session ID (matches document ID)</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">classId:</span>
-              <span class="field-type">String</span>
-              <span class="field-description">- Reference to class this session belongs to</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">teacherId:</span>
-              <span class="field-type">String</span>
-              <span class="field-description">- Reference to teacher running the session</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">startTime:</span>
-              <span class="field-type">Timestamp</span>
-              <span class="field-description">- When the session started or is scheduled to start</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">endTime:</span>
-              <span class="field-type">Timestamp | null</span>
-              <span class="field-description">- When the session ended (null if active)</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">status:</span>
-              <span class="field-type">String</span>
-              <span class="field-description">- 'scheduled', 'active', 'ended', or 'cancelled'</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">location:</span>
-              <span class="field-type">GeoPoint</span>
-              <span class="field-description">- Geographic location for the session</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">radius:</span>
-              <span class="field-type">Number</span>
-              <span class="field-description">- Radius in meters for valid check-in</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">created_at:</span>
-              <span class="field-type">Timestamp</span>
-              <span class="field-description">- When the session was created</span>
-            </div>
-            
-            <div class="document-example">
-              <h6 class="mb-2">Example Document:</h6>
-<pre>{
-  "sessionId": "session123",
-  "classId": "cs101",
-  "teacherId": "teacher123",
-  "startTime": "2025-04-18T14:00:00Z",
-  "endTime": null,
-  "status": "active",
-  "location": {
-    "latitude": 37.7749,
-    "longitude": -122.4194
-  },
-  "radius": 100,
-  "created_at": "2025-04-18T13:45:00Z"
-}</pre>
-            </div>
-            
-            <div class="subcollection-header">
-              <span class="emoji-icon">✅</span> /sessions/{sessionId}/attendance/{studentId}
-            </div>
-            <p class="mt-2">Each document in this subcollection represents a student's attendance record:</p>
-            
-            <div class="document-field">
-              <span class="field-name">studentId:</span>
-              <span class="field-type">String</span>
-              <span class="field-description">- Student's user ID</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">classId:</span>
-              <span class="field-type">String</span>
-              <span class="field-description">- Class ID for cross-session queries</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">checkInTime:</span>
-              <span class="field-type">Timestamp | null</span>
-              <span class="field-description">- When student checked in</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">checkInLocation:</span>
-              <span class="field-type">GeoPoint | null</span>
-              <span class="field-description">- Where student checked in</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">checkOutTime:</span>
-              <span class="field-type">Timestamp | null</span>
-              <span class="field-description">- When student checked out early (if applicable)</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">status:</span>
-              <span class="field-type">String</span>
-              <span class="field-description">- 'pending', 'checked_in', 'verified', 'failed_location', 'failed_other', 'absent', 'checked_out_early_before_verification'</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">isGpsVerified:</span>
-              <span class="field-type">Boolean</span>
-              <span class="field-description">- Whether location check passed</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">lastUpdated:</span>
-              <span class="field-type">Timestamp</span>
-              <span class="field-description">- When the record was last updated</span>
-            </div>
-            
-            <div class="document-example">
-              <h6 class="mb-2">Example Document:</h6>
-<pre>{
-  "studentId": "student123", 
-  "classId": "cs101",
-  "checkInTime": "2025-04-18T14:05:23Z",
-  "checkInLocation": {
-    "latitude": 37.7748,
-    "longitude": -122.4195
-  },
-  "checkOutTime": null,
-  "status": "verified",
-  "isGpsVerified": true,
-  "lastUpdated": "2025-04-18T14:05:23Z"
-}</pre>
-            </div>
-          </div>
-        </div>
-        
-        <!-- User Classes Collection -->
-        <div class="collection-card">
-          <div class="collection-header">
-            <span class="emoji-icon">🔗</span> /userClasses/{userId}/classes/{classId}
-          </div>
-          <div class="card-body">
-            <p>This collection enables efficient lookup of classes a student is enrolled in:</p>
-            
-            <div class="document-field">
-              <span class="field-name">className:</span>
-              <span class="field-type">String</span>
-              <span class="field-description">- Name of the class (denormalized for quick display)</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">teacherName:</span>
-              <span class="field-type">String</span>
-              <span class="field-description">- Teacher's name (denormalized for quick display)</span>
-            </div>
-            <div class="document-field">
-              <span class="field-name">joinDate:</span>
-              <span class="field-type">Timestamp</span>
-              <span class="field-description">- When the student joined the class</span>
-            </div>
-            
-            <div class="document-example">
-              <h6 class="mb-2">Example Document:</h6>
-<pre>{
-  "className": "Computer Science 101",
-  "teacherName": "Professor Smith",
-  "joinDate": "2025-04-15T09:30:00Z"
-}</pre>
-            </div>
-          </div>
-        </div>
-      </div>
+      <small>CleO Admin Tools - Running in <span id="environment-label">emulator</span> mode</small>
     </div>
   </div>
-
-  <!-- Warning Banner -->
-  <div class="warning-banner">
-    ⚠️ Running in emulator mode. Do not use with production credentials.
-  </div>
-
-  <!-- Firebase SDK -->
+  
+  <!-- Firebase -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-  
-  <!-- Initialize Firebase -->
-  <script>
-    // Your web app's Firebase configuration (use emulator settings)
-    const firebaseConfig = {
-      apiKey: "demo-api-key",
-      authDomain: "demo-project.firebaseapp.com",
-      projectId: "cleo-attendance",
-      storageBucket: "demo-project.appspot.com",
-      messagingSenderId: "123456789012",
-      appId: "1:123456789012:web:123456789abcdef0123456"
-    };
-    
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    
-    // Enable emulators when running locally
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      console.log('Running on localhost, connecting to Firebase emulators');
-      
-      // Connect to Auth emulator
-      firebase.auth().useEmulator('http://127.0.0.1:9098');
-      
-      // Connect to Firestore emulator
-      firebase.firestore().useEmulator('127.0.0.1', 8003);
-      
-      console.log('Firebase emulators connected');
-    }
-  </script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-functions-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
   
   <!-- Bootstrap Bundle with Popper -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
   
-  <!-- Import module script -->
+  <!-- Import from our modules -->
   <script type="module">
-    // Import helper functions
     import { addAdminUser, createAllTestData } from '../js/add-admin-user.js';
+    import { getFirebase, onConnectionChange, getInitializedFirebase } from '../js/firebase-init.js'; // Ensure getFirebase is imported
+    import apiKeyManager from '../js/api-key-manager.js';
+    import * as dataVisualizer from '../js/data-visualizer.js';
     
-    document.addEventListener('DOMContentLoaded', () => {
-      const createAdminBtn = document.getElementById('create-admin-button');
-      const createAllBtn = document.getElementById('create-all-button');
+    // FIX: Properly expose the dataVisualizer module functions to the window object
+    // This allows other scripts to access these functions via window.dataVisualizer
+    window.dataVisualizer = {
+      initializeCharts: dataVisualizer.initializeCharts,
+      updateCharts: dataVisualizer.updateCharts,
+      stopRealTimeDataListeners: dataVisualizer.stopRealTimeDataListeners,
+      formatDataOutput: dataVisualizer.formatDataOutput,
+      filterDataForVisualization: dataVisualizer.filterDataForVisualization,
+      forceRefreshCharts: dataVisualizer.forceRefreshCharts,
+      fetchAllSessions: dataVisualizer.fetchAllSessions
+    };
+    
+    // Initialize EmailJS with proper error handling
+    (function() {
+      try {
+        emailjs.init({
+          publicKey: "QfxdVumW71ozC8Bva",
+          blockHeadless: false // Allow testing in headless/development environments
+        });
+        console.log("EmailJS initialized successfully");
+      } catch (error) {
+        console.error("EmailJS initialization failed:", error);
+      }
+    })();
+
+    // Global state
+    let generatedData = null; // Data generated by the 'Create Test Data' button
+    let initialDataCache = null; // Data loaded initially on page load/auth
+    let dataVisualizerInitialized = false;
+    let initialDataLoadComplete = false;
+    let mainContentVisible = false; // Track if main content is supposed to be visible
+
+    // DOM elements for API Key authentication
+    const apiKeySection = document.getElementById('api-key-section');
+    const mainContent = document.getElementById('main-content');
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const submitApiKeyButton = document.getElementById('submitApiKey');
+    const requestApiKeyButton = document.getElementById('requestApiKey');
+    const apiKeyStatus = document.getElementById('apiKeyStatus');
+    const submitSpinner = submitApiKeyButton.querySelector('.spinner-border');
+    const requestSpinner = requestApiKeyButton.querySelector('.spinner-border');
+    const successNotification = document.getElementById('successNotification');
+
+    // DOM elements for data management
+    const filterDataBtn = document.getElementById('filter-data-btn');
+    const filterPanel = document.getElementById('filter-panel');
+    const applyFilterBtn = document.getElementById('apply-filter-btn');
+    const entityFilter = document.getElementById('entity-filter');
+    const roleFilter = document.getElementById('role-filter');
+    const searchFilter = document.getElementById('search-filter');
+    const dataOutput = document.getElementById('data-output');
+    const copyDataBtn = document.getElementById('copy-data-btn');
+
+    // Add event listeners for API key buttons
+    submitApiKeyButton.addEventListener('click', handleApiKeySubmit);
+    requestApiKeyButton.addEventListener('click', handleRequestApiKey);
+    
+    // Add event listeners for data management
+    filterDataBtn.addEventListener('click', toggleFilterPanel);
+    applyFilterBtn.addEventListener('click', applyDataFilters);
+    copyDataBtn.addEventListener('click', copyDataToClipboard);
+    document.getElementById('sign-out-btn')?.addEventListener('click', handleSignOut);
+    document.getElementById('refresh-sessions-btn')?.addEventListener('click', handleRefreshSessions);
+
+    /**
+     * Handle refresh sessions button click
+     */
+    async function handleRefreshSessions() {
+      const btnElement = document.getElementById('refresh-sessions-btn');
+      if (!btnElement) return;
       
-      createAdminBtn.addEventListener('click', () => {
-        addAdminUser();
-      });
+      try {
+        // Update button to show loading state
+        const originalHtml = btnElement.innerHTML;
+        btnElement.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Refreshing...';
+        btnElement.disabled = true;
+        
+        if (dataVisualizer && dataVisualizer.forceRefreshCharts) {
+          console.log("Manual refresh: Using forceRefreshCharts to reload all sessions");
+          const success = await dataVisualizer.forceRefreshCharts();
+          
+          if (success) {
+            // Show success feedback temporarily
+            btnElement.innerHTML = '<i class="bi bi-check-circle me-1"></i>Success!';
+            btnElement.classList.remove('btn-primary');
+            btnElement.classList.add('btn-success');
+            
+            // Add a status message for the user
+            document.getElementById('admin-status').innerHTML = `
+
+              <div class="alert alert-success">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                <strong>Session data refreshed successfully!</strong> All ${dataVisualizer.getActiveSessions ? 
+                  dataVisualizer.getActiveSessions().length : ''} active sessions are now displayed correctly.
+              </div>
+            `;
+            
+            // Restore button after delay
+            setTimeout(() => {
+              btnElement.innerHTML = originalHtml;
+              btnElement.classList.remove('btn-success');
+              btnElement.classList.add('btn-primary');
+              btnElement.disabled = false;
+            }, 2000);
+          } else {
+            throw new Error("Session refresh failed");
+          }
+        } else {
+          throw new Error("Force refresh function not available");
+        }
+      } catch (error) {
+        console.error("Error refreshing sessions:", error);
+        btnElement.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Error';
+        btnElement.classList.remove('btn-primary');
+        btnElement.classList.add('btn-danger');
+        
+        // Show error message
+        document.getElementById('admin-status').innerHTML = `
+          <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <strong>Session refresh failed:</strong> ${error.message}. Try reloading the page.
+          </div>
+        `;
+        
+        // Restore button after delay
+        setTimeout(() => {
+          btnElement.innerHTML = '<i class="bi bi-arrow-clockwise me-1"></i>Try Again';
+          btnElement.classList.remove('btn-danger');
+          btnElement.classList.add('btn-primary');
+          btnElement.disabled = false;
+        }, 3000);
+      }
+    }
+
+    /**
+     * Handle API key submission
+     */
+    async function handleApiKeySubmit() {
+      const key = apiKeyInput.value.trim();
       
-      createAllBtn.addEventListener('click', () => {
-        createAllTestData();
+      // Validation
+      if (!key) {
+        apiKeyStatus.textContent = 'Please enter an API Key.';
+        apiKeyStatus.className = 'mt-3 text-center text-warning';
+        return;
+      }
+      
+      // Show spinner
+      submitSpinner.style.display = 'inline-block';
+      submitApiKeyButton.disabled = true;
+      apiKeyStatus.textContent = 'Validating API key...';
+
+      try {
+        // Try to validate the key
+        const isValid = await apiKeyManager.validateApiKey(key);
+        
+        if (isValid) {
+          apiKeyStatus.textContent = 'API key validated successfully!';
+          apiKeyStatus.className = 'mt-3 text-center text-success';
+          
+          // Show success notification and immediately hide API key section
+          apiKeySection.style.display = 'none';
+          successNotification.classList.add('show');
+          
+          // Show the main content after a delay
+          setTimeout(() => {
+            showMainContent();
+            
+            // Hide success notification after animation
+            setTimeout(() => {
+              successNotification.classList.remove('show');
+            }, 2000);
+          }, 1000);
+        } else {
+          apiKeyStatus.textContent = 'Invalid API Key. Please try again or request a new one.';
+          apiKeyStatus.className = 'mt-3 text-center text-danger';
+          submitApiKeyButton.disabled = false;
+        }
+      } catch (error) {
+        console.error('Error validating API key:', error);
+        apiKeyStatus.textContent = `Error: ${error.message}`;
+        apiKeyStatus.className = 'mt-3 text-center text-danger';
+        submitApiKeyButton.disabled = false;
+      } finally {
+        submitSpinner.style.display = 'none';
+      }
+    }
+
+    /**
+     * Handle request for a new API key
+     */
+    async function handleRequestApiKey() {
+      requestSpinner.style.display = 'inline-block';
+      requestApiKeyButton.disabled = true;
+      apiKeyStatus.textContent = 'Requesting new API key...';
+      apiKeyStatus.className = 'mt-3 text-center';
+      
+      try {
+        const result = await apiKeyManager.storeAndSendApiKey();
+        
+        if (result.success) {
+          apiKeyStatus.innerHTML = result.message;
+          
+          if (result.apiKey) {
+            // Email failed but key was generated, show it once in a styled container
+            apiKeyStatus.innerHTML += `
+
+              <div class="api-key-display mt-3">
+                <strong>Your API key:</strong>
+                <div class="api-key-value">${result.apiKey}</div>
+                <div class="mt-2 text-warning">Save this key somewhere safe, it won't be shown again!</div>
+              </div>
+            `;
+          }
+          
+          apiKeyStatus.className = 'mt-3 text-center text-success';
+        } else {
+          apiKeyStatus.textContent = result.message;
+          apiKeyStatus.className = 'mt-3 text-center text-danger';
+        }
+      } catch (error) {
+        console.error('Error requesting API key:', error);
+        apiKeyStatus.textContent
+        apiKeyStatus.className = 'mt-3 text-center text-danger';
+      } finally {
+        requestSpinner.style.display = 'none';
+        requestApiKeyButton.disabled = false;
+      }
+    }
+
+    /**
+     * Handle sign out button click
+     */
+    function handleSignOut() {
+      apiKeyManager.signOut();
+      // Let the onAuthStateChanged listener handle UI updates
+      hideMainContent(); // Hide main content and reset state
+    }
+
+    /**
+     * Hide main content and reset state
+     */
+    function hideMainContent() {
+      const mainContent = document.getElementById('main-content');
+      if (mainContent) {
+        mainContent.classList.remove('visible');
+        mainContent.style.display = 'none';
+      }
+      // Reset flags
+      initialDataLoadComplete = false;
+      dataVisualizerInitialized = false;
+      generatedData = null; // Clear generated data on sign out
+      initialDataCache = null; // Clear initial data cache on sign out
+      mainContentVisible = false; // Mark as not visible
+
+      // Optional: Clear charts explicitly if needed
+      if (window.dataVisualizer && typeof window.dataVisualizer.clearCharts === 'function') {
+        console.log("Clearing charts on sign out.");
+        window.dataVisualizer.clearCharts();
+      }
+    }
+
+    /**
+     * Application initialization
+     */
+    async function initializeApp() {
+      try {
+        console.log("Initializing application...");
+        // Get references early
+        const apiKeySection = document.getElementById('api-key-section');
+        const mainContent = document.getElementById('main-content');
+
+        // Initialize API Key Manager first
+        await apiKeyManager.initialize();
+        console.log("API Key Manager initialized");
+
+        // Check for existing authentication
+        const isAuthenticated = await apiKeyManager.checkExistingAuth();
+        console.log("Authentication check completed. Is authenticated:", isAuthenticated);
+
+        if (isAuthenticated) {
+          // *** FIX: Hide API key section immediately if authenticated ***
+          apiKeySection.style.display = 'none';
+          await showMainContent();
+        } else {
+          // *** Ensure API key section is visible if not authenticated ***
+          apiKeySection.style.display = 'flex'; // Use the default flex display
+          mainContent.style.display = 'none'; // Ensure main content is hidden
+          mainContent.classList.remove('visible');
+        }
+
+        // Set up the rest of the application regardless of authentication status
+        setupDataGenerationEvents();
+        setupConnectionMonitoring();
+        setupEmulatorToggle();
+
+        // Listen for authentication state changes (handles sign-out etc.)
+        apiKeyManager.onAuthStateChanged(handleAuthStateChange);
+      } catch (error) {
+        console.error("Error initializing application:", error);
+        // Ensure API key section is visible on error, main content hidden
+        const apiKeySection = document.getElementById('api-key-section');
+        const mainContent = document.getElementById('main-content');
+        if (apiKeySection) apiKeySection.style.display = 'flex';
+        if (mainContent) mainContent.style.display = 'none';
+
+        document.getElementById('admin-status').innerHTML = `
+          <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> <strong>Initialization Error:</strong><br>
+            ${error.message}
+          </div>
+        `;
+      }
+    }
+
+    /**
+     * Handle authentication state changes
+     */
+    function handleAuthStateChange(state) {
+      console.log("Auth state changed:", state);
+      const apiKeySection = document.getElementById('api-key-section');
+
+      if (state.authenticated) {
+        if (apiKeySection) apiKeySection.style.display = 'none'; // Hide API section
+        // Only show main content if it wasn't already supposed to be visible
+        // This prevents redundant calls if auth state changes rapidly or unnecessarily
+        if (!mainContentVisible) {
+          showMainContent(); // This will handle initialization and data loading
+        }
+      } else {
+        if (apiKeySection) apiKeySection.style.display = 'flex'; // Show API section
+        hideMainContent(); // Hide content and reset flags
+      }
+    }
+
+    /**
+     * Fetch initial data from Firestore
+     */
+    async function fetchInitialData() {
+      console.log("Fetching initial data from Firestore...");
+      try {
+        const { firebase } = getFirebase(); // Get firebase instance
+        if (!firebase || !firebase.firestore) {
+          console.error("Firestore instance is not available in getFirebase().");
+          throw new Error("Firestore is not available.");
+        }
+        const db = firebase.firestore();
+        console.log("Firestore instance obtained:", db);
+
+        console.log("Attempting to fetch collections...");
+        const usersSnapshot = await db.collection('users').get();
+        const classesSnapshot = await db.collection('classes').get();
+        const sessionsSnapshot = await db.collection('sessions').get();
+        console.log(`Fetched Snapshots - Users: ${usersSnapshot.size}, Classes: ${classesSnapshot.size}, Sessions: ${sessionsSnapshot.size}`);
+
+        if (usersSnapshot.empty && classesSnapshot.empty && sessionsSnapshot.empty) {
+            console.warn("Firestore collections (users, classes, sessions) appear to be empty according to snapshots.");
+            // Optional: Display a message to the user? Or just let charts be empty.
+        }
+
+        const users = usersSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const classes = classesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const sessions = sessionsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        // Structure the data similarly to generatedData if needed by visualizer
+        // Or adapt the visualizer to handle this structure
+        initialDataCache = { users, classes, sessions };
+        // Log the actual data structure being cached
+        console.log("Initial data fetched and processed:", JSON.stringify(initialDataCache, null, 2)); // Pretty print JSON
+        return initialDataCache;
+      } catch (error) {
+        console.error("Error fetching initial data:", error);
+        // Display error to user?
+        document.getElementById('admin-status').innerHTML = `
+          <div class="alert alert-warning">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> <strong>Warning:</strong> Could not load initial data for visualization. Charts might be empty until new data is generated. (${error.message})
+          </div>`;
+        return null; // Indicate failure
+      }
+    }
+
+    /**
+     * Show main content and initialize necessary components
+     */
+    async function showMainContent() {
+      const mainContent = document.getElementById('main-content');
+      if (!mainContent) return; // Guard clause
+
+      mainContent.style.display = 'block';
+      void mainContent.offsetWidth; // Trigger reflow
+      mainContent.classList.add('visible');
+      mainContentVisible = true; // Mark as visible
+
+      // Initialize data visualizer only once per session (until sign out)
+      if (!dataVisualizerInitialized) {
+        try {
+          console.log("Initializing data visualizer...");
+          // Initialize the data visualizer module
+          dataVisualizer.initializeCharts();
+          
+          // Expose necessary methods to window object for consistent access
+          window.dataVisualizer = {
+            initializeCharts: dataVisualizer.initializeCharts,
+            updateCharts: dataVisualizer.updateCharts,
+            stopRealTimeDataListeners: dataVisualizer.stopRealTimeDataListeners,
+            formatDataOutput: dataVisualizer.formatDataOutput,
+            filterDataForVisualization: dataVisualizer.filterDataForVisualization,
+            forceRefreshCharts: dataVisualizer.forceRefreshCharts,
+            fetchAllSessions: dataVisualizer.fetchAllSessions
+          };
+          
+          dataVisualizerInitialized = true;
+          console.log("Data visualizer initialized successfully.");
+        } catch (error) {
+           console.error("Error initializing data visualizer:", error);
+           return; // Stop if visualizer fails to init
+        }
+      }
+
+      // Fetch initial data and update charts ONLY if not already done
+      if (dataVisualizerInitialized && !initialDataLoadComplete) {
+          console.log("Attempting initial data load and chart update...");
+          try {
+              // First try to fetch all data using traditional method
+              const initialData = await fetchInitialData();
+              
+              if (initialData && (initialData.users?.length || initialData.classes?.length || initialData.sessions?.length)) {
+                  console.log("Initial data successfully loaded:", initialData);
+                  initialDataCache = initialData;
+                  generatedData = null;
+                  
+                  // Update charts using the module function directly to ensure class chart works
+                  dataVisualizer.updateCharts(initialData);
+                  
+                  // Update display
+                  updateDataDisplay(null, initialData);
+                  
+                  // Now try to use forceRefreshCharts to ensure sessions load correctly
+                  // This is a separate step to not block the initial UI update
+                  try {
+                      console.log("Performing additional session refresh to ensure complete data");
+                      if (typeof dataVisualizer.forceRefreshCharts === 'function') {
+                          await dataVisualizer.forceRefreshCharts();
+                          console.log("Additional session refresh completed");
+                      }
+                  } catch (refreshError) {
+                      console.warn("Additional session refresh failed, but UI already updated:", refreshError);
+                  }
+                  
+                  initialDataLoadComplete = true;
+                  console.log("Initial data load and chart update complete with both approaches");
+              } else {
+                  console.warn("Initial data fetch returned empty or invalid data.");
+                  initialDataLoadComplete = true;
+                  dataVisualizer.updateCharts({ users: [], classes: [], sessions: [] });
+                  updateDataDisplay(null, { users: [], classes: [], sessions: [] });
+              }
+          } catch (error) {
+              console.error("Error during initial data fetch/update:", error);
+              initialDataLoadComplete = true; // Prevent retrying on error
+          }
+      } else if (dataVisualizerInitialized && initialDataLoadComplete) {
+          // If visualizer is ready AND initial load is done, ensure charts show the *correct* current data
+          console.log("Initial data already processed. Ensuring charts reflect current state.");
+          const currentDisplayData = generatedData || initialDataCache;
+          if (currentDisplayData) {
+              dataVisualizer.updateCharts(currentDisplayData);
+              updateDataDisplay(null, currentDisplayData);
+          } else {
+              console.log("No current data (initial or generated) available to display.");
+              dataVisualizer.updateCharts({ users: [], classes: [], sessions: [] });
+              updateDataDisplay(null, { users: [], classes: [], sessions: [] });
+          }
+      } else {
+          console.log("Visualizer not ready or initial load not yet attempted.");
+      }
+    }
+    
+    /**
+     * Fallback to traditional data fetching method
+     * Used when forceRefreshCharts is not available
+     */
+    async function fallbackToTraditionalFetch() {
+        const initialData = await fetchInitialData();
+        if (initialData && (initialData.users?.length || initialData.classes?.length || initialData.sessions?.length)) {
+            initialDataCache = initialData; // Store fetched data
+            generatedData = null; // Ensure generated data is null if we just loaded initial
+            console.log("Initial data loaded via traditional fetch");
+            dataVisualizer.updateCharts(initialDataCache); // Update charts
+            updateDataDisplay(null, initialDataCache); // Update raw data display
+            initialDataLoadComplete = true; // Set the flag
+            console.log("Initial data load and chart update complete.");
+        } else {
+            console.warn("Initial data fetch returned null, empty, or invalid data. Charts will remain empty for now.");
+            // Set flag to true even if data is empty to prevent re-fetching
+            initialDataLoadComplete = true;
+            // Optionally clear charts or show a message
+            window.dataVisualizer.updateCharts({ users: [], classes: [], sessions: [] }); // Update with empty
+            updateDataDisplay(null, { users: [], classes: [], sessions: [] });
+        }
+    }
+
+    /**
+     * Initialize the data visualizer module
+     */
+    async function initializeDataVisualizer() {
+      return new Promise((resolve) => {
+        if (dataVisualizer && typeof dataVisualizer.initializeCharts === 'function') {
+          dataVisualizer.initializeCharts();
+          console.log("Data visualizer initialized successfully");
+          resolve(true);
+        } else {
+          console.error("Data visualizer module not available or missing functions");
+          resolve(false);
+        }
       });
-    });
+    }
+
+    /**
+     * Update the data output display
+     * MODIFIED: Accept data source as argument
+     */
+    function updateDataDisplay(filters = null, dataSource = null) {
+      const currentData = dataSource || generatedData || initialDataCache; // Prioritize provided data, then generated, then initial cache
+
+      if (!currentData) {
+        dataOutput.textContent = "No data available. Generate data or refresh the page.";
+        return;
+      }
+
+      try {
+        // Make sure data visualizer is initialized
+        if (!dataVisualizerInitialized) {
+          // Avoid infinite loops, just log error if visualizer isn't ready
+          console.warn("updateDataDisplay called before visualizer initialized.");
+          dataOutput.textContent = "Visualizer initializing...";
+          return;
+        }
+
+        // Check if formatDataOutput function exists
+        if (typeof dataVisualizer.formatDataOutput !== 'function') {
+          console.error("formatDataOutput is not a function in data-visualizer module");
+          dataOutput.textContent = "Error: formatDataOutput function not available.";
+          return;
+        }
+
+        dataOutput.textContent = dataVisualizer.formatDataOutput(currentData, filters);
+      } catch (error) {
+        console.error("Error updating data display:", error);
+        dataOutput.textContent = `Error formatting data: ${error.message}`;
+      }
+    }
+
+
+    /**
+     * Apply data filters to the output
+     * MODIFIED: Use the correct data source
+     */
+    function applyDataFilters() {
+       const currentData = generatedData || initialDataCache; // Prioritize generated data if available
+       if (!currentData) return;
+       
+       const filters = {
+         entity: entityFilter.value,
+         role: roleFilter.value,
+         search: searchFilter.value
+       };
+       
+       // Make sure data visualizer is initialized
+       if (!dataVisualizerInitialized) {
+         // Should not happen if UI is visible, but good practice
+         console.warn("applyDataFilters called before visualizer initialized.");
+         return;
+       }
+       
+       try {
+         // Update the data output
+         updateDataDisplay(filters, currentData); // Pass current data
+         
+         // Check if filterDataForVisualization function exists
+         if (typeof dataVisualizer.filterDataForVisualization !== 'function') {
+           console.error("filterDataForVisualization is not a function in data-visualizer module");
+           return;
+         }
+         
+         // Update charts with filtered data
+         const filteredData = dataVisualizer.filterDataForVisualization(currentData, filters);
+         dataVisualizer.updateCharts(filteredData);
+       } catch (error) {
+         console.error("Error applying data filters:", error);
+       }
+    }
+
+
+    /**
+     * Copy data to clipboard
+     */
+    function copyDataToClipboard() {
+      if (!dataOutput.textContent || dataOutput.textContent === "No data generated yet. Click \"Create Complete Test Dataset\" to generate data.") {
+        alert('No data to copy yet. Generate data first.');
+        return;
+      }
+      
+      navigator.clipboard.writeText(dataOutput.textContent)
+        .then(() => {
+          const button = copyDataBtn;
+          const originalHTML = button.innerHTML;
+          button.innerHTML = '<i class="bi bi-check-circle me-1"></i>Copied!';
+          setTimeout(() => {
+            button.innerHTML = originalHTML;
+          }, 2000);
+        })
+        .catch(err => {
+          console.error('Could not copy text: ', err);
+          alert('Failed to copy to clipboard');
+        });
+    }
+
+    /**
+     * Update step indicators in the UI
+     */
+    function updateStepIndicators(currentStep) {
+      const steps = ['step1', 'step2', 'step3'];
+      const stepElements = steps.map(id => document.getElementById(id));
+      const stepTextElements = steps.map(id => document.getElementById(id + '-text'));
+      
+      steps.forEach((step, index) => {
+        const element = stepElements[index];
+        const textElement = stepTextElements[index];
+        
+        if (!element || !textElement) return;
+        
+        // Remove all classes
+        element.parentElement.classList.remove('step-active', 'step-completed');
+        
+        if (step === currentStep) {
+          // Current step
+          element.parentElement.classList.add('step-active');
+        } else if (steps.indexOf(step) < steps.indexOf(currentStep)) {
+          // Completed step
+          element.parentElement.classList.add('step-completed');
+          element.innerHTML = '<i class="bi bi-check"></i>';
+        } else {
+          // Future step
+          element.innerHTML = index + 1;
+        }
+      });
+    }
+
+    /**
+     * Toggle the filter panel visibility
+     */
+    function toggleFilterPanel() {
+      if (filterPanel.style.display === 'none') {
+        filterPanel.style.display = 'block';
+        filterDataBtn.innerHTML = '<i class="bi bi-funnel-fill me-1"></i>Hide Filters';
+      } else {
+        filterPanel.style.display = 'none';
+        filterDataBtn.innerHTML = '<i class="bi bi-funnel me-1"></i>Filter';
+      }
+    }
+
+    /**
+     * Set up data generation events
+     */
+    function setupDataGenerationEvents() {
+      const createAdminButton = document.getElementById('create-admin-button');
+      const createAllButton = document.getElementById('create-all-button');
+      const testConnectionBtn = document.getElementById('test-connection-btn');
+      const clearCacheBtn = document.getElementById('clear-cache-btn');
+      
+      if (createAdminButton) {
+        createAdminButton.addEventListener('click', async () => {
+          updateStepIndicators('step2');
+          await handleCreateAdmin();
+          updateStepIndicators('step3');
+        });
+      }
+      
+      if (createAllButton) {
+        createAllButton.addEventListener('click', async () => {
+          updateStepIndicators('step2');
+          await handleCreateAllTestData();
+          updateStepIndicators('step3');
+        });
+      }
+      
+      if (testConnectionBtn) {
+        testConnectionBtn.addEventListener('click', testConnection);
+      }
+      
+      if (clearCacheBtn) {
+        clearCacheBtn.addEventListener('click', () => {
+          localStorage.clear();
+          sessionStorage.clear();
+          window.location.reload();
+        });
+      }
+    }
+    
+    /**
+     * Set up connection monitoring
+     */
+    function setupConnectionMonitoring() {
+      const connectionStatus = document.getElementById('connection-status');
+      
+      if (!connectionStatus) return;
+      
+      onConnectionChange((online, errorCode) => {
+        if (online) {
+          connectionStatus.textContent = '🟢 Connected';
+          connectionStatus.className = 'connection-status online';
+        } else {
+          connectionStatus.textContent = `🔴 Disconnected (${errorCode || 'unknown'})`;
+          connectionStatus.className = 'connection-status offline';
+        }
+        connectionStatus.style.display = 'block';
+      });
+    }
+    
+    /**
+     * Set up emulator toggle
+     */
+    function setupEmulatorToggle() {
+      const emulatorSwitch = document.getElementById('emulator-switch');
+      const environmentLabel = document.getElementById('environment-label');
+      
+      if (!emulatorSwitch || !environmentLabel) return;
+      
+      // Check local storage for saved preference
+      const useEmulator = localStorage.getItem('useEmulator') === 'true';
+      emulatorSwitch.checked = useEmulator;
+      environmentLabel.textContent = useEmulator ? 'emulator' : 'production';
+      
+      // Handle switch change
+      emulatorSwitch.addEventListener('change', (event) => {
+        const newValue = event.target.checked;
+        localStorage.setItem('useEmulator', newValue);
+        environmentLabel.textContent = newValue ? 'emulator' : 'production';
+        
+        // Show warning if enabling emulator
+        if (newValue) {
+          document.getElementById('admin-status').innerHTML = `
+            <div class="alert alert-warning">
+              <i class="bi bi-exclamation-triangle-fill me-2"></i>
+              <strong>Switching to emulator mode.</strong> You will need to restart the application for this change to fully take effect.
+            </div>
+          `;
+        } else {
+          document.getElementById('admin-status').innerHTML = `
+            <div class="alert alert-info">
+              <i class="bi bi-info-circle-fill me-2"></i>
+              <strong>Switching to production mode.</strong> You will need to restart the application for this change to fully take effect.
+            </div>
+          `;
+        }
+      });
+    }
+    
+    /**
+     * Test connection to Firebase
+     */
+    async function testConnection() {
+      const adminStatus = document.getElementById('admin-status');
+      
+      if (!adminStatus) return;
+      
+      try {
+        const { firebase } = getFirebase();
+        if (!firebase || !firebase.firestore) {
+          throw new Error("Firebase not initialized");
+        }
+        
+        // Test Firestore connection
+        const db = firebase.firestore();
+        const testRef = db.collection('_connection_test').doc(Date.now().toString());
+        await testRef.set({
+          timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        
+        adminStatus.innerHTML = `
+          <div class="alert alert-success">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            <strong>Connection Successful!</strong> Firebase and Firestore are working properly.
+          </div>
+        `;
+        
+        // Clean up the test document
+        await testRef.delete();
+      } catch (error) {
+        console.error("Connection test failed:", error);
+        adminStatus.innerHTML = `
+          <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <strong>Connection Failed:</strong> ${error.message}
+          </div>
+        `;
+      }
+    }
+    
+    /**
+     * Handle creating admin user
+     */
+    async function handleCreateAdmin() {
+      try {
+        const adminStatus = document.getElementById('admin-status');
+        const progressBar = document.querySelector('.operation-progress');
+        const progressText = document.getElementById('progress-text');
+        
+        if (!adminStatus || !progressBar || !progressText) return;
+        
+        // Show progress
+        progressBar.style.display = 'block';
+        progressText.style.display = 'block';
+        progressText.textContent = 'Creating admin user...';
+        progressBar.querySelector('.progress-bar').style.width = '50%';
+        
+        // Create admin user
+        const result = await addAdminUser();
+        
+        // Update UI
+        progressBar.querySelector('.progress-bar').style.width = '100%';
+        progressText.textContent = 'Admin user created successfully!';
+        
+        adminStatus.innerHTML = `
+          <div class="alert alert-success">
+            <i class="bi bi-check-circle-fill me-2"></i> <strong>Success!</strong><br>
+            Created admin user with email: ${result.email}<br>
+            Password: ${result.password}
+          </div>
+        `;
+        
+        // Hide progress bar after a delay
+        setTimeout(() => {
+          progressBar.style.display = 'none';
+          progressText.style.display = 'none';
+        }, 2000);
+      } catch (error) {
+        console.error("Error creating admin user:", error);
+        document.getElementById('admin-status').innerHTML = `
+          <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> <strong>Error Creating Admin User:</strong><br>
+            ${error.message}
+          </div>
+        `;
+        
+        // Hide progress
+        document.querySelector('.operation-progress').style.display = 'none';
+        document.getElementById('progress-text').style.display = 'none';
+      }
+    }
+    
+    /**
+     * Handle creating all test data
+     * MODIFIED: Ensure generatedData is prioritized and visualizer updated
+     */
+    async function handleCreateAllTestData() {
+      try {
+        const adminStatus = document.getElementById('admin-status');
+        const progressBar = document.querySelector('.operation-progress');
+        const progressText = document.getElementById('progress-text');
+        
+        if (!adminStatus || !progressBar || !progressText) return;
+        
+        // Get input values
+        const numTeachers = parseInt(document.getElementById('numTeachers').value) || 2;
+        const numStudents = parseInt(document.getElementById('numStudents').value) || 10;
+        const numClasses = parseInt(document.getElementById('numClasses').value) || 3;
+        
+        // Show progress
+        progressBar.style.display = 'block';
+        progressText.style.display = 'block';
+        progressText.textContent = 'Creating admin user...';
+        progressBar.querySelector('.progress-bar').style.width = '10%';
+        
+        // Create all test data
+        const result = await createAllTestData({
+          numTeachers,
+          numStudents,
+          numClasses,
+          onProgress: (message, percentage) => {
+            progressText.textContent = message;
+            progressBar.querySelector('.progress-bar').style.width = `${percentage}%`;
+          }
+        });
+        
+        // Show success message
+        adminStatus.innerHTML = `
+          <div class="alert alert-success">
+            <i class="bi bi-check-circle-fill me-2"></i> <strong>Test Data Created!</strong><br>
+            Created admin user, ${result.numTeachers} teachers, ${result.numStudents} students, ${result.numClasses} classes, and ${result.numSessions} sessions.
+          </div>
+        `;
+
+        // Update state: generatedData takes precedence
+        generatedData = result; // Update local variable
+        initialDataCache = null; // Invalidate initial cache
+        initialDataLoadComplete = true; // Mark as loaded (with generated data)
+        console.log("Generated data created:", JSON.stringify(generatedData));
+
+        // Update data output and charts with reliable session loading
+        try {
+          console.log("Using forceRefreshCharts for reliable session loading after data generation");
+          if (dataVisualizerInitialized && window.dataVisualizer.forceRefreshCharts) {
+            const success = await window.dataVisualizer.forceRefreshCharts();
+            console.log("Force refresh after generation completed:", success ? "successfully" : "with errors");
+          } else {
+            // Fall back to standard update
+            console.log("Force refresh not available, using standard update");
+            updateDataDisplay(null, generatedData);
+            window.dataVisualizer.updateCharts(generatedData);
+          }
+        } catch (refreshError) {
+          console.error("Error during refresh after generation:", refreshError);
+          // Fall back to standard update
+          updateDataDisplay(null, generatedData);
+          window.dataVisualizer.updateCharts(generatedData);
+        }
+        
+        // Hide progress bar after a delay
+        setTimeout(() => {
+          progressBar.style.display = 'none';
+          progressText.style.display = 'none';
+        }, 2000);
+      } catch (error) {
+        console.error("Error creating test data:", error);
+        document.getElementById('admin-status').innerHTML = `
+          <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> <strong>Error Creating Test Data:</strong><br>
+            ${error.message || 'An unknown error occurred.'}
+          </div>
+        `;
+        
+        // Hide progress
+        const progressBar = document.querySelector('.operation-progress');
+        const progressText = document.getElementById('progress-text');
+        if(progressBar) progressBar.style.display = 'none';
+        if(progressText) progressText.style.display = 'none';
+      }
+    }
+
+    // Initialize the application when the DOM is fully loaded
+    document.addEventListener('DOMContentLoaded', initializeApp);
   </script>
 </body>
 </html>
-``` 

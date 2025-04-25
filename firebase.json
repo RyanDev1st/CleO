@@ -13,8 +13,12 @@
         "destination": "/index.html"
       },
       {
-        "source": "/:path*",
-        "destination": "/:path*.html"
+        "source": "/test",
+        "destination": "/html/helper-test.html"
+      },
+      {
+        "source": "/seeder",
+        "destination": "/html/admin-test.html"
       },
       {
         "source": "**",
@@ -38,19 +42,22 @@
   ],
   "emulators": {
     "auth": {
-      "port": 9098
-    },
-    "functions": {
-      "port": 5002
+      "port": 49158
     },
     "ui": {
       "enabled": true,
-      "port": 4000
+      "port": 49160
     },
     "singleProjectMode": true,
-    
+    "database": {
+      "port": 49161
+    },
+    "hosting": {
+      "port": 49162
+    },
     "firestore": {
-      "port": 8003
+      "port": 49163
     }
   }
 }
+

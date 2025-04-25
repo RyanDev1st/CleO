@@ -1,6 +1,13 @@
 // Client-side main application file for CleO attendance system
 
-import { initializeFirestoreCollections } from './js/initialize-firestore.js';
+// Import only the necessary Firebase initialization function
+import { getInitializedFirebase } from './js/firebase-init.js';
+// Import data visualizer for real-time chart updates
+import { initializeCharts, updateCharts, stopRealTimeDataListeners } from './js/data-visualizer.js'; // Corrected import
+
+// Firebase services holder
+let firebaseServices = {};
+let db, auth; // Convenience variables
 
 // Application state
 const app = {
@@ -10,6 +17,10 @@ const app = {
   view: {
     current: 'login',
     previous: null
+  },
+  visualization: {
+    initialized: false,
+    listenersActive: false
   }
 };
 
@@ -43,6 +54,7 @@ const elements = {
   attendanceCheckinForm: document.getElementById('attendance-checkin-form'),
   attendanceContainer: document.getElementById('attendance-container'),
 
+
   // Navigation elements
   navAuthenticated: document.getElementById('nav-authenticated'),
   navLogin: document.getElementById('nav-login'),
@@ -60,40 +72,197 @@ async function initApp() {
   showLoading();
   
   try {
-    // Initialize Firestore collections to make them visible in the emulator UI
-    await initializeFirestoreCollections();
+    // Wait for Firebase initialization
+    firebaseServices = await getInitializedFirebase();
+    if (!firebaseServices || !firebaseServices.firebase || !firebaseServices.db || !firebaseServices.auth) {
+        console.error("Critical Firebase services failed to initialize. App cannot start.");
+        displayError("Failed to connect to backend services. Please refresh and try again.");
+        hideLoading(); // Hide loading as we can't proceed
+        return; // Stop initialization
+    }
+
+    // Assign to convenience variables
+    db = firebaseServices.db;
+    auth = firebaseServices.auth;
+    console.log('Firebase services initialized successfully in app.js.');
+    console.log(`[DEBUG app.js] Received services: db=${db ? 'OK' : 'null'}, auth=${auth ? 'OK' : 'null'}`);
+
+    // Firestore initialization is now handled by firebase-init.js
     
-    // Set up authentication listener
-    firebase.auth().onAuthStateChanged(async (user) => {
+    // Set up authentication listener using the initialized auth service
+    auth.onAuthStateChanged(async (user) => {
       console.log('Auth state changed:', user ? user.uid : 'logged out');
       app.currentUser = user;
       
       if (user) {
         try {
-          // Get user profile from Firestore
-          const userDoc = await firebase.firestore().collection('users').doc(user.uid).get();
+          console.log('User logged in, retrieving profile data for:', user.uid, user.email);
+          
+          // First try to get the user profile from the direct document ID
+          let userDoc = await db.collection('users').doc(user.uid).get();
+          let foundMethod = 'direct-uid';
+          
+          // If the document doesn't exist by Auth UID, try various fallback methods
+          if (!userDoc.exists) {
+            console.log('User document not found by direct ID, trying alternative lookup methods');
+            
+            // Try to find by email match first (most reliable for seeded users)
+            if (user.email) {
+              console.log('Searching for user profile by email:', user.email);
+              const emailQuery = await db.collection('users')
+                .where('email', '==', user.email)
+                .limit(1)
+                .get();
+                
+              if (!emailQuery.empty) {
+                userDoc = emailQuery.docs[0];
+                foundMethod = 'email-match';
+                console.log(`Found user by email match: ${user.email}, doc ID: ${userDoc.id}`);
+              }
+            }
+            
+            // If still not found, look for any document where authUid field equals this user's uid
+            if (!userDoc.exists) {
+              console.log('Searching for user profile by authUid field');
+              const authUidQuery = await db.collection('users')
+                .where('authUid', '==', user.uid)
+                .limit(1)
+                .get();
+                
+              if (!authUidQuery.empty) {
+                userDoc = authUidQuery.docs[0];
+                foundMethod = 'authUid-field';
+                console.log(`Found user by authUid field match: ${userDoc.id}`);
+              }
+            }
+            
+            // Last resort: full scan of users collection (for small datasets)
+            if (!userDoc.exists) {
+              console.log('Performing full scan of users collection');
+              const allUsersQuery = await db.collection('users').get();
+              for (const doc of allUsersQuery.docs) {
+                const userData = doc.data();
+                if (userData.email === user.email || userData.authUid === user.uid) {
+                  userDoc = doc;
+                  foundMethod = 'full-scan';
+                  console.log(`Found user by full collection scan: ${doc.id}`);
+                  break;
+                }
+              }
+            }
+          }
           
           if (userDoc.exists) {
             app.userProfile = userDoc.data();
-            updateUIForAuthenticatedUser(app.userProfile);
+            console.log(`User profile found (method: ${foundMethod}):`, app.userProfile);
             
-            // Show dashboard based on role
-            if (app.userProfile.role === 'teacher') {
-              showTeacherViews();
-              showView('teacher-dashboard');
-              loadClasses(); // Load teacher's classes
-              loadSessions(); // Load teacher's sessions
-            } else if (app.userProfile.role === 'student') {
-              showStudentViews();
-              showView('student-dashboard');
-              loadClasses(); // Load student's classes
-              loadActiveSessions(); // Load active sessions for the student
+            // Create a reference document with the Auth UID if not already exists
+            // This will help future lookups be more efficient
+            if (foundMethod !== 'direct-uid' && user.uid !== userDoc.id) {
+              try {
+                const refDocExists = await db.collection('users').doc(user.uid).get();
+                if (!refDocExists.exists) {
+                  console.log('Creating reference document with Auth UID for faster future lookups');
+                  await db.collection('users').doc(user.uid).set({
+                    uid: userDoc.id,
+                    email: app.userProfile.email,
+                    displayName: app.userProfile.displayName,
+                    role: app.userProfile.role,
+                    isReference: true,
+                    original_doc_id: userDoc.id,
+                    created_at: firebaseServices.firebase.firestore.FieldValue.serverTimestamp()
+                  });
+                  console.log('Reference document created successfully');
+                }
+              } catch (refError) {
+                console.warn('Failed to create reference document:', refError);
+                // Non-critical error, continue with login flow
+              }
+            }
+            
+            // Even if we find a user profile, check if it has all required fields
+            if (!app.userProfile.displayName || !app.userProfile.role) {
+              console.log('User profile is missing required fields, directing to profile setup');
+              
+              // Pre-fill values if they exist in the Auth user or seeded data
+              const existingName = app.userProfile.displayName || user.displayName;
+              const existingRole = app.userProfile.role;
+              
+              if (existingName) {
+                const nameInput = document.getElementById('profile-name');
+                if (nameInput) nameInput.value = existingName;
+              }
+              
+              if (existingRole) {
+                const roleInput = document.querySelector(`input[name="profile-role"][value="${existingRole}"]`);
+                if (roleInput) roleInput.checked = true;
+              } else if (user.email) {
+                // Try to guess role from email
+                const isTeacherEmail = user.email.includes('teacher') || 
+                                      user.email.includes('professor') || 
+                                      user.email.includes('faculty') ||
+                                      user.email.includes('instructor');
+                
+                if (isTeacherEmail) {
+                  const teacherRoleInput = document.querySelector('input[name="profile-role"][value="teacher"]');
+                  if (teacherRoleInput) teacherRoleInput.checked = true;
+                }
+              }
+              
+              showView('profile-setup');
             } else {
-              showView('profile');
+              // User has a complete profile - update their profile document with latest data
+              try {
+                // Update any missing fields like Auth UID if necessary
+                if (foundMethod !== 'direct-uid' && !app.userProfile.authUid) {
+                  await db.collection('users').doc(userDoc.id).update({
+                    authUid: user.uid,
+                    lastLogin: firebaseServices.firebase.firestore.FieldValue.serverTimestamp()
+                  });
+                  console.log('Updated user document with authUid and lastLogin timestamp');
+                } else {
+                  // Just update lastLogin timestamp
+                  await db.collection('users').doc(userDoc.id).update({
+                    lastLogin: firebaseServices.firebase.firestore.FieldValue.serverTimestamp()
+                  });
+                  console.log('Updated lastLogin timestamp');
+                }
+              } catch (updateError) {
+                console.warn('Non-critical error updating user document:', updateError);
+              }
+              
+              // User has a complete profile
+              updateUIForAuthenticatedUser(app.userProfile);
+              
+              // Show dashboard based on role
+              if (app.userProfile.role === 'teacher') {
+                showTeacherViews();
+                showView('teacher-dashboard');
+                loadClasses(); // Load teacher's classes
+                loadSessions(); // Load teacher's sessions
+              } else if (app.userProfile.role === 'student') {
+                showStudentViews();
+                showView('student-dashboard');
+                loadClasses(); // Load student's classes
+                loadActiveSessions(); // Load active sessions for the student
+              }
             }
           } else {
             // New user, show profile setup
+            console.log('No user profile found, directing to profile setup');
             showView('profile-setup');
+            
+            // Pre-fill the profile form with data from Firebase Auth if available
+            if (user.displayName) {
+              const nameInput = document.getElementById('profile-name');
+              if (nameInput) nameInput.value = user.displayName;
+            }
+            
+            // Default to student role unless the email contains 'teacher'
+            if (user.email && user.email.includes('teacher')) {
+              const teacherRoleInput = document.querySelector('input[name="profile-role"][value="teacher"]');
+              if (teacherRoleInput) teacherRoleInput.checked = true;
+            }
           }
         } catch (error) {
           console.error('Error getting user profile:', error);
@@ -132,19 +301,75 @@ async function handleLogin(e) {
   const email = document.getElementById('login-email').value;
   const password = document.getElementById('login-password').value;
   
+  if (!email || !password) {
+    showToast('Please enter both email and password', 'error');
+    hideLoading();
+    return;
+  }
+  
   try {
     console.log('Attempting login for email:', email);
     
+    // Check if we're using emulators
+    const isUsingEmulator = localStorage.getItem('useFirebaseEmulator') === 'true';
+    
+    if (isUsingEmulator) {
+      console.log('Using Firebase Auth emulator - implementing manual validation checks');
+      
+      // Firebase emulator accepts any credentials, so we need to manually check
+      // if the user exists in our database first
+      const emailQuery = await db.collection('users')
+        .where('email', '==', email)
+        .limit(1)
+        .get();
+      
+      if (emailQuery.empty) {
+        console.error('Manual emulator validation: No user found with this email');
+        throw new Error('No account found with this email. Please register.');
+      }
+      
+      // In emulator mode, we would ideally check password but can't since we don't store passwords
+      console.log('Emulator mode: User exists, proceeding with Auth (password not verified)');
+    }
+    
     // Set a timeout to prevent indefinite loading
-    const loginPromise = firebase.auth().signInWithEmailAndPassword(email, password);
+    const loginPromise = auth.signInWithEmailAndPassword(email, password);
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error('Login timeout: Server did not respond in time')), 10000);
     });
     
     // Race between login and timeout
-    await Promise.race([loginPromise, timeoutPromise]);
+    const userCredential = await Promise.race([loginPromise, timeoutPromise]);
     
-    console.log('Login successful');
+    // At this point login is successful in Firebase Auth
+    console.log('Firebase authentication successful');
+    
+    // Check if we actually got a user with credentials back from Firebase
+    if (!userCredential || !userCredential.user) {
+      throw new Error('Authentication successful but user data is missing');
+    }
+    
+    // Add additional checks to ensure the user exists in our database
+    const userUid = userCredential.user.uid;
+    const userDoc = await db.collection('users').doc(userUid).get();
+    
+    // Verify user exists in our Firestore database
+    if (!userDoc.exists) {
+      console.error('User authenticated but no profile found in database');
+      // Attempt to find user with other methods
+      const emailQuery = await db.collection('users')
+        .where('email', '==', email)
+        .limit(1)
+        .get();
+      
+      if (emailQuery.empty) {
+        // User doesn't exist in our database
+        await auth.signOut(); // Sign out from Firebase auth
+        throw new Error('Account exists but no user profile found. Please contact administrator.');
+      }
+    }
+    
+    console.log('Login successful - user validated in database');
     showToast('Login successful!', 'success');
   } catch (error) {
     console.error('Login error:', error);
@@ -155,8 +380,12 @@ async function handleLogin(e) {
       errorMessage = 'Incorrect password. Please try again.';
     } else if (error.code === 'auth/user-not-found') {
       errorMessage = 'No account found with this email. Please register.';
+    } else if (error.code === 'auth/invalid-credential') {
+      errorMessage = 'Invalid credentials. Please check your email and password.';
+    } else if (error.code === 'auth/invalid-email') {
+      errorMessage = 'Invalid email format. Please enter a valid email address.';
     } else if (error.code === 'auth/network-request-failed' || error.message.includes('timeout')) {
-      errorMessage = 'Network error connecting to authentication service. Check your Firebase configuration.';
+      errorMessage = 'Network error connecting to authentication service. Check your connection and try again.';
     }
     
     showToast('Login failed: ' + errorMessage, 'error');
@@ -212,7 +441,6 @@ function hideTeacherViews() {
 function showStudentViews() {
   if (elements.navStudentClasses) elements.navStudentClasses.style.display = 'block';
   if (elements.navStudentSessions) elements.navStudentSessions.style.display = 'block';
-  hideTeacherViews();
 }
 
 // Hide student-specific views
@@ -272,24 +500,31 @@ function setupEventListeners() {
       
       // For create-session view, load classes for dropdown
       if (viewName === 'create-session' && app.userProfile?.role === 'teacher') {
-        firebase.firestore().collection('classes')
-          .where('teacherId', '==', app.currentUser.uid)
-          .get()
-          .then(snapshot => {
-            const classes = snapshot.docs.map(doc => ({
-              classId: doc.id,
-              name: doc.data().name
-            }));
-            populateClassDropdown(classes);
-          })
-          .catch(error => {
-            console.error('Error loading classes for dropdown:', error);
-          });
+        loadClasses().then(classes => {
+          populateClassDropdown(classes);
+        });
+      }
+      
+      // Initialize data visualization when admin-dashboard is accessed
+      if (viewName === 'admin-dashboard' || viewName === 'admin-test') {
+        initializeDataVisualization();
       }
       
       showView(viewName);
       e.preventDefault();
     }
+  });
+  
+  // Add listeners for navigation changes to start/stop data visualization
+  const adminNavLinks = document.querySelectorAll('[data-view="admin-dashboard"], [data-view="admin-test"]');
+  adminNavLinks.forEach(link => {
+    link.addEventListener('click', initializeDataVisualization);
+  });
+  
+  // Handle visualization cleanup when leaving admin views
+  const nonAdminNavLinks = document.querySelectorAll('[data-view]:not([data-view="admin-dashboard"]):not([data-view="admin-test"])');
+  nonAdminNavLinks.forEach(link => {
+    link.addEventListener('click', cleanupDataVisualization);
   });
 }
 
@@ -305,100 +540,106 @@ async function handleRegister(e) {
   const role = document.querySelector('input[name="register-role"]:checked').value;
   
   try {
-    // Create auth user
-    const userCredential = await firebase.auth().createUserWithEmailAndPassword(email, password);
-    const user = userCredential.user;
+    // Use the initialized auth service
+    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+    console.log('Registration successful for:', email, 'UID:', userCredential.user.uid);
     
-    // Update display name
-    await user.updateProfile({ displayName });
+    // Create profile data right away
+    const profileData = {
+      displayName: displayName,
+      role: role,
+      email: email,
+      authUid: userCredential.user.uid,
+      createdAt: firebaseServices.firebase.firestore.FieldValue.serverTimestamp()
+    };
     
-    // Create user profile in Firestore
-    await firebase.firestore().collection('users').doc(user.uid).set({
-      uid: user.uid,
-      email,
-      displayName,
-      role,
-      created_at: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    // Save the profile to Firestore
+    await db.collection('users').doc(userCredential.user.uid).set(profileData);
+    console.log('User profile created for:', userCredential.user.uid);
     
-    showToast('Registration successful!', 'success');
-    // Auth state change listener will handle UI update
-  } catch (error) {
-    console.error('Registration error:', error);
-    let errorMessage = error.message || 'Unknown error occurred';
+    app.currentUser = userCredential.user; // Update current user immediately
+    app.userProfile = profileData; // Set the user profile
     
-    // User-friendly error messages
-    if (error.code === 'auth/email-already-in-use') {
-      errorMessage = 'This email is already registered. Please use a different email or login.';
-    } else if (error.code === 'auth/weak-password') {
-      errorMessage = 'Password is too weak. Please use a stronger password.';
-    } else if (error.code === 'auth/invalid-email') {
-      errorMessage = 'Invalid email address. Please check and try again.';
-    } else if (error.code === 'auth/network-request-failed') {
-      errorMessage = 'Network error. Please check your connection to the emulator.';
+    // Update UI based on role
+    updateUIForAuthenticatedUser(profileData);
+    if (role === 'teacher') {
+      showTeacherViews();
+      showView('teacher-dashboard');
+    } else {
+      showStudentViews();
+      showView('student-dashboard');
     }
     
-    showToast('Registration failed: ' + errorMessage, 'error');
+    showToast('Registration successful!', 'success');
+  } catch (error) {
+    console.error('Registration failed:', error);
+    showToast(`Registration failed: ${error.message}`, 'error');
+  } finally {
     hideLoading();
   }
 }
 
 async function handleLogout() {
   try {
-    await firebase.auth().signOut();
-    // Auth state change listener will handle UI update
-    showToast('Logged out successfully', 'success');
+    // Use the initialized auth service
+    await auth.signOut();
+    console.log('User logged out.');
+    // Auth state listener will handle UI updates
+    // updateUIForUnauthenticatedUser(); // Let auth listener handle this
+    // showView('login');
   } catch (error) {
-    console.error('Logout error:', error);
-    showToast('Logout failed: ' + error.message, 'error');
+    console.error('Logout failed:', error);
+    showToast('Logout failed. Please try again.', 'error');
   }
 }
 
 async function handleProfileSetup(e) {
   e.preventDefault();
+  if (!app.currentUser) {
+    showToast('You must be logged in to set up a profile.', 'error');
+    return;
+  }
+
+  const name = document.getElementById('profile-name').value;
+  const role = document.querySelector('input[name="profile-role"]:checked')?.value;
+
+  if (!name || !role) {
+    showToast('Please enter your name and select a role.', 'error');
+    return;
+  }
+
+  const profileData = {
+    displayName: name,
+    role: role,
+    email: app.currentUser.email, // Include email from Auth
+    authUid: app.currentUser.uid, // Link to Auth UID
+    createdAt: firebaseServices.firebase.firestore.FieldValue.serverTimestamp()
+  };
+
   showLoading();
-  
-  const name = document.getElementById('profile-name').value.trim();
-  const role = document.querySelector('input[name="profile-role"]:checked').value;
-  
   try {
-    const user = firebase.auth().currentUser;
-    
-    if (!user) {
-      throw new Error('No user signed in');
-    }
-    
-    // Update display name
-    await user.updateProfile({
-      displayName: name
-    });
-    
-    // Create/update user document in Firestore
-    await firebase.firestore().collection('users').doc(user.uid).set({
-      uid: user.uid,
-      displayName: name,
-      email: user.email,
-      role: role,
-      created_at: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
-    
-    showToast('Profile setup successful!', 'success');
-    
-    // Show appropriate dashboard based on role
+    // Use the initialized db service and the user's Auth UID as the document ID
+    await db.collection('users').doc(app.currentUser.uid).set(profileData);
+    console.log('User profile created/updated successfully:', profileData);
+    app.userProfile = profileData; // Update local profile
+
+    // Update UI and navigate to correct dashboard
+    updateUIForAuthenticatedUser(profileData);
     if (role === 'teacher') {
       showTeacherViews();
       showView('teacher-dashboard');
       loadClasses();
       loadSessions();
-    } else if (role === 'student') {
+    } else {
       showStudentViews();
       showView('student-dashboard');
       loadClasses();
       loadActiveSessions();
     }
   } catch (error) {
-    console.error('Profile setup error:', error);
-    showToast('Profile setup failed: ' + error.message, 'error');
+    console.error('Error saving profile:', error);
+    showToast(`Error saving profile: ${error.message}`, 'error');
+  } finally {
     hideLoading();
   }
 }
@@ -406,67 +647,33 @@ async function handleProfileSetup(e) {
 // ---- Class Management Handlers ----
 
 async function loadClasses() {
+  if (!app.currentUser || !app.userProfile) return;
   showLoading();
   try {
-    if (!app.currentUser || !app.userProfile) {
-      console.warn("User not authenticated or profile not loaded");
-      hideLoading();
-      return [];
+    let query;
+    if (app.userProfile.role === 'teacher') {
+      console.log('Loading classes for teacher:', app.currentUser.uid);
+      // Use the initialized db service
+      query = db.collection('classes').where('teacherUid', '==', app.currentUser.uid);
+    } else { // Student
+      console.log('Loading classes for student:', app.currentUser.uid);
+      // Use the initialized db service
+      query = db.collection('classes').where('studentUids', 'array-contains', app.currentUser.uid);
     }
-    
-    const role = app.userProfile.role;
-    let classes = [];
-    
-    if (role === 'teacher') {
-      const snapshot = await firebase.firestore().collection('classes')
-        .where('teacherId', '==', app.currentUser.uid)
-        .get();
-      
-      classes = snapshot.docs.map(doc => ({
-        ...doc.data(),
-        classId: doc.id
-      }));
-      
+    const snapshot = await query.get();
+    const classes = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    console.log('Classes loaded:', classes);
+    if (app.userProfile.role === 'teacher') {
       renderTeacherClasses(classes);
-    } else if (role === 'student') {
-      const userClassesSnapshot = await firebase.firestore()
-        .collection(`userClasses/${app.currentUser.uid}/classes`)
-        .get();
-      
-      const classIds = userClassesSnapshot.docs.map(doc => doc.id);
-      
-      if (classIds.length > 0) {
-        // Process in chunks since 'in' operator has a limit of 10
-        const chunkSize = 10;
-        const allClasses = [];
-        
-        for (let i = 0; i < classIds.length; i += chunkSize) {
-          const chunk = classIds.slice(i, i + chunkSize);
-          const snapshot = await firebase.firestore().collection('classes')
-            .where(firebase.firestore.FieldPath.documentId(), 'in', chunk)
-            .get();
-          
-          const classes = snapshot.docs.map(doc => ({
-            ...doc.data(),
-            classId: doc.id
-          }));
-          
-          allClasses.push(...classes);
-        }
-        
-        renderStudentClasses(allClasses);
-      } else {
-        renderStudentClasses([]);
-      }
+      populateClassDropdown(classes); // Populate dropdown for creating sessions
+    } else {
+      renderStudentClasses(classes);
     }
-    
-    hideLoading();
-    return classes;
   } catch (error) {
     console.error('Error loading classes:', error);
-    showToast('Failed to load classes. Please try again.', 'error');
+    showToast('Failed to load classes.', 'error');
+  } finally {
     hideLoading();
-    return [];
   }
 }
 
@@ -481,124 +688,84 @@ function generateJoinCode() {
 
 async function handleCreateClass(e) {
   e.preventDefault();
+  if (!app.currentUser || app.userProfile?.role !== 'teacher') return;
+
+  const className = elements.classForm['class-name'].value;
+  if (!className) {
+    showToast('Please enter a class name.', 'error');
+    return;
+  }
+
+  const joinCode = generateJoinCode();
+  const classData = {
+    name: className,
+    teacherUid: app.currentUser.uid,
+    teacherName: app.userProfile.displayName || 'Unknown Teacher',
+    studentUids: [],
+    joinCode: joinCode,
+    createdAt: firebaseServices.firebase.firestore.FieldValue.serverTimestamp()
+  };
+
   showLoading();
-  
-  const name = document.getElementById('class-name').value;
-  
   try {
-    console.log('Creating class with name:', name);
-    // Generate a join code
-    const joinCode = generateJoinCode();
-    
-    // Set a timeout to prevent indefinite loading
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Request timeout')), 15000); // 15 second timeout
-    });
-    
-    // Create the class with a timeout
-    const classCreatePromise = (async () => {
-      const classRef = firebase.firestore().collection('classes').doc();
-      await classRef.set({
-        classId: classRef.id,
-        name,
-        teacherId: app.currentUser.uid,
-        joinCode,
-        created_at: firebase.firestore.FieldValue.serverTimestamp()
-      });
-      return classRef.id;
-    })();
-    
-    // Race between the class creation and the timeout
-    const classId = await Promise.race([classCreatePromise, timeoutPromise]);
-    
-    console.log('Class created successfully with ID:', classId);
-    showToast(`Class "${name}" created with join code: ${joinCode}`, 'success');
-    
-    // Navigate to classes view
-    showView('teacher-classes');
-    
-    // Load classes in the background
-    setTimeout(() => {
-      loadClasses().catch(err => {
-        console.error('Error reloading classes after creation:', err);
-      });
-    }, 100);
-    
+    // Use the initialized db service
+    const docRef = await db.collection('classes').add(classData);
+    console.log('Class created successfully with ID:', docRef.id);
+    showToast('Class created successfully!', 'success');
+    elements.classForm.reset();
+    loadClasses(); // Refresh class list
   } catch (error) {
-    console.error('Create class error:', error);
-    
-    // More specific error messages based on the error
-    let errorMessage = 'Failed to create class';
-    if (error.message === 'Request timeout') {
-      errorMessage = 'Connection to Firebase timed out. The class may still have been created. Please check your classes list.';
-    } else if (error.code === 'unavailable' || error.message.includes('network')) {
-      errorMessage = 'Network connection issue. Please check your connection to the Firebase emulator.';
-    } else if (error.code === 'permission-denied') {
-      errorMessage = 'You don\'t have permission to create classes.';
-    } else {
-      errorMessage += ': ' + error.message;
-    }
-    
-    showToast(errorMessage, 'error');
+    console.error('Error creating class:', error);
+    showToast(`Error creating class: ${error.message}`, 'error');
+  } finally {
     hideLoading();
-    
-    // Try to navigate to classes view anyway so user doesn't get stuck
-    showView('teacher-classes');
   }
 }
 
 async function handleJoinClass(e) {
   e.preventDefault();
+  if (!app.currentUser || app.userProfile?.role !== 'student') return;
+
+  const joinCode = elements.joinClassForm['join-code'].value;
+  if (!joinCode) {
+    showToast('Please enter a join code.', 'error');
+    return;
+  }
+
   showLoading();
-  
-  const joinCode = document.getElementById('join-code').value;
-  
   try {
-    // Find class with join code
-    const classSnapshot = await firebase.firestore().collection('classes')
-      .where('joinCode', '==', joinCode)
-      .limit(1)
-      .get();
-    
-    if (classSnapshot.empty) {
-      throw new Error('Invalid join code');
+    // Use the initialized db service
+    const query = db.collection('classes').where('joinCode', '==', joinCode).limit(1);
+    const snapshot = await query.get();
+
+    if (snapshot.empty) {
+      showToast('Invalid join code.', 'error');
+      return;
     }
-    
-    const classDoc = classSnapshot.docs[0];
-    const classData = classDoc.data();
+
+    const classDoc = snapshot.docs[0];
     const classId = classDoc.id;
-    
-    // Get teacher name
-    const teacherId = classData.teacherId;
-    const teacherDoc = await firebase.firestore().collection('users').doc(teacherId).get();
-    const teacherName = teacherDoc.exists ? teacherDoc.data().displayName : 'Unknown Teacher';
-    
-    // Add student to class
-    const batch = firebase.firestore().batch();
-    
-    // Add student to class students subcollection
-    const studentRef = firebase.firestore().collection(`classes/${classId}/students`).doc(app.currentUser.uid);
-    batch.set(studentRef, { 
-      joinDate: firebase.firestore.FieldValue.serverTimestamp()
+    const classData = classDoc.data();
+
+    if (classData.studentUids.includes(app.currentUser.uid)) {
+      showToast('You are already enrolled in this class.', 'warning');
+      elements.joinClassForm.reset();
+      return;
+    }
+
+    // Use the initialized db and firebase services
+    await db.collection('classes').doc(classId).update({
+      studentUids: firebaseServices.firebase.firestore.FieldValue.arrayUnion(app.currentUser.uid)
     });
-    
-    // Add class to student's classes subcollection
-    const userClassRef = firebase.firestore().collection(`userClasses/${app.currentUser.uid}/classes`).doc(classId);
-    batch.set(userClassRef, { 
-      className: classData.name,
-      teacherName,
-      joinDate: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    
-    await batch.commit();
-    
-    showToast(`Successfully joined class: ${classData.name}`, 'success');
-    // Reload classes
-    await loadClasses();
-    showView('student-classes');
+
+    console.log('Successfully joined class:', classId);
+    showToast('Successfully joined class!', 'success');
+    elements.joinClassForm.reset();
+    loadClasses(); // Refresh class list
   } catch (error) {
-    console.error('Join class error:', error);
-    showToast('Failed to join class: ' + error.message, 'error');
+    console.error('Error joining class:', error);
+    showToast(`Error joining class: ${error.message}`, 'error');
+  } finally {
     hideLoading();
   }
 }
@@ -614,6 +781,7 @@ function renderTeacherClasses(classes) {
   
   if (classes.length === 0) {
     html = `
+
       <div class="alert alert-info">
         <p>You haven't created any classes yet.</p>
         <button class="btn btn-primary btn-sm" data-view="create-class">Create Your First Class</button>
@@ -628,16 +796,16 @@ function renderTeacherClasses(classes) {
               <div class="card-body">
                 <h5 class="card-title">${cls.name}</h5>
                 <p class="card-text">
-                  <strong>Class ID:</strong> <span class="badge bg-secondary">${cls.classId}</span><br>
+                  <strong>Class ID:</strong> <span class="badge bg-secondary">${cls.id}</span><br>
                   <strong>Join Code:</strong> ${cls.joinCode}<br>
-                  <strong>Created:</strong> ${cls.created_at ? new Date(cls.created_at.toDate()).toLocaleString() : 'N/A'}
+                  <strong>Created:</strong> ${cls.createdAt ? new Date(cls.createdAt.toDate()).toLocaleString() : 'N/A'}
                 </p>
               </div>
               <div class="card-footer">
-                <button class="btn btn-success btn-sm create-session-btn" data-class-id="${cls.classId}" data-class-name="${cls.name}">
+                <button class="btn btn-success btn-sm create-session-btn" data-class-id="${cls.id}" data-class-name="${cls.name}">
                   Start Session
                 </button>
-                <button class="btn btn-info btn-sm view-students-btn" data-class-id="${cls.classId}">
+                <button class="btn btn-info btn-sm view-students-btn" data-class-id="${cls.id}">
                   View Students
                 </button>
               </div>
@@ -686,7 +854,7 @@ function renderTeacherClasses(classes) {
             <li class="list-group-item d-flex justify-content-between align-items-center">
               ${cls.name}
               <div>
-                <span class="badge bg-secondary me-1">ID: ${cls.classId}</span>
+                <span class="badge bg-secondary me-1">ID: ${cls.id}</span>
                 <span class="badge bg-primary rounded-pill">
                   Join Code: ${cls.joinCode}
                 </span>
@@ -731,7 +899,7 @@ function renderStudentClasses(classes) {
               <div class="card-body">
                 <h5 class="card-title">${cls.name}</h5>
                 <p class="card-text">
-                  <strong>Class ID:</strong> <span class="badge bg-secondary">${cls.classId}</span><br>
+                  <strong>Class ID:</strong> <span class="badge bg-secondary">${cls.id}</span><br>
                   <strong>Teacher:</strong> ${cls.teacherName || 'Unknown'}<br>
                 </p>
               </div>
@@ -764,7 +932,7 @@ function renderStudentClasses(classes) {
             <li class="list-group-item d-flex justify-content-between align-items-center">
               ${cls.name}
               <div>
-                <span class="badge bg-secondary">ID: ${cls.classId}</span>
+                <span class="badge bg-secondary">ID: ${cls.id}</span>
               </div>
             </li>
           `).join('')}
@@ -782,398 +950,240 @@ function renderStudentClasses(classes) {
 // ---- Session Management ----
 
 async function loadSessions() {
+  if (!app.currentUser || app.userProfile?.role !== 'teacher') return;
   showLoading();
-  
   try {
-    if (!app.currentUser || !app.userProfile) {
-      console.warn("User not authenticated or profile not loaded");
-      hideLoading();
-      return [];
-    }
-    
     console.log('Loading sessions for teacher:', app.currentUser.uid);
-    const role = app.userProfile.role;
-    let sessions = [];
-    
-    if (role === 'teacher') {
-      const snapshot = await firebase.firestore().collection('sessions')
-        .where('teacherId', '==', app.currentUser.uid)
-        .get();
-      
-      console.log('Found sessions:', snapshot.size);
-      
-      sessions = snapshot.docs.map(doc => {
-        const data = doc.data();
-        
-        // Pre-process timestamps to avoid toDate() errors later
-        let processedData = {...data};
-        if (data.startTime && typeof data.startTime.toDate === 'function') {
-          processedData.startTimeFormatted = data.startTime.toDate().toLocaleString();
-        } else {
-          processedData.startTimeFormatted = 'N/A';
-        }
-        
-        if (data.endTime && typeof data.endTime.toDate === 'function') {
-          processedData.endTimeFormatted = data.endTime.toDate().toLocaleString();
-        } else {
-          processedData.endTimeFormatted = 'N/A';
-        }
-        
-        return {
-          ...processedData,
-          sessionId: doc.id,
-          className: 'Loading...' // Temporary placeholder
-        };
-      });
-      
-      // For each session, fetch class name to display properly
-      if (sessions.length > 0) {
-        console.log('Fetching class information for sessions...');
-        const classInfoPromises = sessions.map(async (session) => {
-          try {
-            if (session.classId) {
-              const classDoc = await firebase.firestore()
-                .collection('classes')
-                .doc(session.classId)
-                .get();
-                
-              if (classDoc.exists) {
-                session.className = classDoc.data().name || 'Unknown Class';
-                console.log(`Found class name for session ${session.sessionId}: ${session.className}`);
-              } else {
-                session.className = 'Unknown Class';
-                console.warn(`Class ${session.classId} not found for session ${session.sessionId}`);
-              }
-            }
-          } catch (e) {
-            console.error('Error fetching class info:', e);
-            session.className = 'Error Loading';
-          }
-        });
-        
-        await Promise.all(classInfoPromises);
-      }
-      
-      renderSessions(sessions);
-    }
-    
-    hideLoading();
-    return sessions;
+    // Use the initialized db service
+    const query = db.collectionGroup('sessions') // Query across all classes' subcollections
+                    .where('teacherUid', '==', app.currentUser.uid)
+                    .orderBy('startTime', 'desc'); // Order by start time descending
+    const snapshot = await query.get();
+    const sessions = snapshot.docs.map(doc => ({ id: doc.id, classId: doc.ref.parent.parent.id, ...doc.data() }));
+    console.log('Sessions loaded:', sessions);
+    renderSessions(sessions);
   } catch (error) {
     console.error('Error loading sessions:', error);
-    showToast('Failed to load sessions: ' + error.message, 'error');
+    // Specific error for collectionGroup query needing an index
+    if (error.code === 'failed-precondition') {
+        console.error("Firestore index missing for sessions query. See error details for link to create it.", error);
+        showToast('Backend setup required: Missing Firestore index for sessions. Check console (F12) for details.', 'error', 15000); // Show longer
+    } else {
+        showToast('Failed to load sessions.', 'error');
+    }
+  } finally {
     hideLoading();
-    return [];
   }
 }
 
 async function loadActiveSessions() {
-  if (app.userProfile?.role !== 'student') return;
-  
+  if (!app.currentUser || app.userProfile?.role !== 'student') return;
+  showLoading();
+
+  // First, get the list of classes the student is enrolled in
+  let studentClassIds = [];
   try {
-    showLoading();
-    console.log('Loading active sessions for student:', app.currentUser.uid);
-    
-    // Get all classes the student is enrolled in
-    const userClassesSnapshot = await firebase.firestore()
-      .collection(`userClasses/${app.currentUser.uid}/classes`)
-      .get();
-    
-    const classIds = userClassesSnapshot.docs.map(doc => doc.id);
-    console.log('Student enrolled in classes:', classIds);
-    
-    if (classIds.length === 0) {
-      console.log('No classes found for student - no active sessions possible');
-      renderStudentSessions([]);
-      hideLoading();
-      return;
-    }
-    
-    // Process in chunks since 'in' operator has a limit of 10
-    const chunkSize = 10;
-    const activeSessions = [];
-    
-    for (let i = 0; i < classIds.length; i += chunkSize) {
-      const chunk = classIds.slice(i, i + chunkSize);
-      console.log('Querying sessions for class chunk:', chunk);
-      
-      // Query for active sessions in this student's classes
-      const snapshot = await firebase.firestore().collection('sessions')
-        .where('classId', 'in', chunk)
-        .where('status', '==', 'active')
-        .get();
-      
-      console.log('Query returned sessions:', snapshot.size);
-      
-      // Enhanced debugging for each session in the snapshot
-      snapshot.forEach(doc => {
-        console.log('Session details:', {
-          id: doc.id,
-          classId: doc.data().classId,
-          status: doc.data().status,
-          startTime: doc.data().startTime
-        });
-      });
-      
-      const sessions = snapshot.docs.map(doc => {
-        const data = doc.data();
-        return {
-          ...data,
-          sessionId: doc.id,
-          // Add formatted time for better display
-          startTimeFormatted: data.startTime ? new Date(data.startTime.toDate()).toLocaleString() : 'N/A'
-        };
-      });
-      
-      console.log('Processed sessions in this chunk:', sessions.length);
-      activeSessions.push(...sessions);
-    }
-    
-    console.log('Total active sessions found:', activeSessions.length);
-    
-    if (activeSessions.length > 0) {
-      // Get class info for each session
-      const classInfoPromises = activeSessions.map(async (session) => {
-        try {
-          // Try to get class details from userClasses collection first
-          const userClassDoc = await firebase.firestore()
-            .collection(`userClasses/${app.currentUser.uid}/classes`)
-            .doc(session.classId)
-            .get();
-          
-          if (userClassDoc.exists) {
-            session.className = userClassDoc.data().className || 'Unknown Class';
-            session.teacherName = userClassDoc.data().teacherName || 'Unknown Teacher';
-          } else {
-            // Fallback: get class info directly from classes collection
-            const classDoc = await firebase.firestore()
-              .collection('classes')
-              .doc(session.classId)
-              .get();
-              
-            if (classDoc.exists) {
-              session.className = classDoc.data().name || 'Unknown Class';
-              
-              // Get teacher name
-              const teacherId = classDoc.data().teacherId;
-              const teacherDoc = await firebase.firestore()
-                .collection('users')
-                .doc(teacherId)
-                .get();
-              
-              if (teacherDoc.exists) {
-                session.teacherName = teacherDoc.data().displayName || 'Unknown Teacher';
-              } else {
-                session.teacherName = 'Unknown Teacher';
-              }
-            } else {
-              session.className = 'Unknown Class';
-              session.teacherName = 'Unknown Teacher';
-            }
-          }
-          
-          // Check if student already attended this session
-          const attendanceDoc = await firebase.firestore()
-            .collection('sessions')
-            .doc(session.sessionId)
-            .collection('attendance')
-            .doc(app.currentUser.uid)
-            .get();
-          
-          session.hasAttended = attendanceDoc.exists;
-          if (session.hasAttended) {
-            session.attendanceStatus = attendanceDoc.data().status;
-          }
-        } catch (e) {
-          console.error('Error getting class/attendance info:', e);
-        }
-      });
-      
-      await Promise.all(classInfoPromises);
-    }
-    
-    renderStudentSessions(activeSessions);
+    // Use the initialized db service
+    const classQuery = db.collection('classes').where('studentUids', 'array-contains', app.currentUser.uid);
+    const classSnapshot = await classQuery.get();
+    studentClassIds = classSnapshot.docs.map(doc => doc.id);
+    console.log('Student is enrolled in class IDs:', studentClassIds);
+  } catch (error) {
+    console.error('Error loading student classes for active session check:', error);
+    showToast('Failed to load your classes.', 'error');
     hideLoading();
+    return;
+  }
+
+  if (studentClassIds.length === 0) {
+    console.log('Student is not enrolled in any classes.');
+    renderStudentSessions([]); // Render empty list
+    hideLoading();
+    return;
+  }
+
+  try {
+    console.log('Loading active sessions for student in classes:', studentClassIds);
+    const now = new Date();
+    let activeSessions = [];
+
+    // Firestore doesn't support 'in' query with collectionGroup or multiple inequality filters easily.
+    // We have to query sessions for each class individually.
+    // For a small number of classes, this is acceptable.
+    for (const classId of studentClassIds) {
+        // Use the initialized db service
+        const query = db.collection('classes').doc(classId).collection('sessions')
+                        .where('endTime', '>', firebaseServices.firebase.firestore.Timestamp.fromDate(now)) // Session hasn't ended yet
+                        .where('status', '==', 'active'); // Session is marked active
+
+        const snapshot = await query.get();
+        snapshot.docs.forEach(doc => {
+            activeSessions.push({ id: doc.id, classId: classId, ...doc.data() });
+        });
+    }
+
+    // Sort sessions by start time, most recent first
+    activeSessions.sort((a, b) => b.startTime.toDate() - a.startTime.toDate());
+
+    console.log('Active sessions loaded:', activeSessions);
+    renderStudentSessions(activeSessions);
+
+    // Check attendance status for each active session
+    for (const session of activeSessions) {
+        checkStudentAttendanceStatus(session.classId, session.id);
+    }
+
   } catch (error) {
     console.error('Error loading active sessions:', error);
-    showToast('Failed to load active sessions: ' + error.message, 'error');
+    showToast('Failed to load active sessions.', 'error');
+  } finally {
     hideLoading();
   }
 }
 
 async function handleCreateSession(e) {
   e.preventDefault();
+  if (!app.currentUser || app.userProfile?.role !== 'teacher') return;
+
+  const classId = elements.sessionForm['session-class'].value;
+  const sessionName = elements.sessionForm['session-name'].value;
+  const durationMinutes = parseInt(elements.sessionForm['session-duration'].value, 10);
+  // GPS settings
+  const latitude = parseFloat(elements.sessionForm['session-lat'].value);
+  const longitude = parseFloat(elements.sessionForm['session-lng'].value);
+  const radius = parseInt(elements.sessionForm['session-radius'].value, 10);
+
+  if (!classId || !sessionName || isNaN(durationMinutes) || durationMinutes <= 0) {
+    showToast('Please select a class, enter a name, and set a valid duration.', 'error');
+    return;
+  }
+
+  if (isNaN(latitude) || isNaN(longitude) || isNaN(radius) || radius <= 0) {
+      showToast('Please enter valid GPS coordinates and radius.', 'error');
+      return;
+  }
+
+  const now = new Date();
+  const startTime = firebaseServices.firebase.firestore.Timestamp.fromDate(now);
+  const endTime = firebaseServices.firebase.firestore.Timestamp.fromDate(new Date(now.getTime() + durationMinutes * 60000));
+
+  const sessionData = {
+    name: sessionName,
+    teacherUid: app.currentUser.uid,
+    startTime: startTime,
+    endTime: endTime,
+    status: 'active', // Mark as active initially
+    location: {
+        lat: latitude,
+        lng: longitude,
+        radius: radius
+    },
+    verificationMethods: ['gps'], // Default to GPS for now
+    createdAt: firebaseServices.firebase.firestore.FieldValue.serverTimestamp()
+  };
+
   showLoading();
-  
-  const classId = document.getElementById('session-class-id').value;
-  const radius = parseInt(document.getElementById('session-radius').value);
-  
   try {
-    // Get current location
-    const position = await getCurrentPosition();
-    
-    const location = {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude
-    };
-    
-    // Create session in Firestore
-    const sessionRef = firebase.firestore().collection('sessions').doc();
-    await sessionRef.set({
-      sessionId: sessionRef.id,
-      classId,
-      teacherId: app.currentUser.uid,
-      startTime: firebase.firestore.FieldValue.serverTimestamp(),
-      endTime: null,
-      status: 'active',
-      location: new firebase.firestore.GeoPoint(location.latitude, location.longitude),
-      radius,
-      created_at: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    
+    // Use the initialized db service
+    const docRef = await db.collection('classes').doc(classId).collection('sessions').add(sessionData);
+    console.log('Session created successfully with ID:', docRef.id, 'in class', classId);
     showToast('Session created successfully!', 'success');
-    // Reload sessions
-    await loadSessions();
-    showView('teacher-sessions');
+    elements.sessionForm.reset();
+    loadSessions(); // Refresh session list
   } catch (error) {
-    console.error('Create session error:', error);
-    
-    let errorMessage = 'Failed to create session';
-    if (error.code === 1) {
-      errorMessage = 'Location permission denied. You must allow location access to create a session.';
-    } else if (error.code === 2) {
-      errorMessage = 'Location unavailable. Please try again.';
-    } else if (error.code === 3) {
-      errorMessage = 'Location request timed out. Please try again.';
-    } else {
-      errorMessage += ': ' + error.message;
-    }
-    
-    showToast(errorMessage, 'error');
+    console.error('Error creating session:', error);
+    showToast(`Error creating session: ${error.message}`, 'error');
+  } finally {
     hideLoading();
   }
 }
 
 async function handleAttendanceCheckIn(e) {
   e.preventDefault();
+  if (!app.currentUser || app.userProfile?.role !== 'student') return;
+
+  const classId = e.target.dataset.classId;
+  const sessionId = e.target.dataset.sessionId;
+
+  if (!classId || !sessionId) {
+      console.error('Missing classId or sessionId for check-in');
+      showToast('Error: Could not identify session for check-in.', 'error');
+      return;
+  }
+
   showLoading();
-  
-  const sessionId = document.getElementById('checkin-session-id').value;
-  
   try {
-    // Get current location
-    const position = await getCurrentPosition();
-    
-    const studentLocation = {
-      latitude: position.coords.latitude,
-      longitude: position.coords.longitude
-    };
-    
-    console.log(`Student check-in for session: ${sessionId}, location:`, studentLocation);
-    
-    // First, get the session details to verify location
-    const sessionDoc = await firebase.firestore().collection('sessions').doc(sessionId).get();
-    
+    // 1. Get Session Details (including location)
+    // Use the initialized db service
+    const sessionDoc = await db.collection('classes').doc(classId).collection('sessions').doc(sessionId).get();
     if (!sessionDoc.exists) {
-      throw new Error('Session not found');
+        throw new Error('Session not found.');
     }
-    
     const sessionData = sessionDoc.data();
-    const sessionLocation = {
-      latitude: sessionData.location.latitude,
-      longitude: sessionData.location.longitude
-    };
-    
-    // Calculate distance between student and session location
-    const distance = calculateDistance(sessionLocation, studentLocation);
-    const isWithinRadius = distance <= sessionData.radius;
-    
-    console.log(`Distance calculation: ${distance.toFixed(2)}m, Session radius: ${sessionData.radius}m, Within radius: ${isWithinRadius}`);
-    
-    // Record attendance in the correct subcollection
-    await firebase.firestore().collection('sessions').doc(sessionId)
-      .collection('attendance').doc(app.currentUser.uid).set({
-        studentId: app.currentUser.uid,
-        classId: sessionData.classId,
-        checkInTime: firebase.firestore.FieldValue.serverTimestamp(),
-        checkInLocation: new firebase.firestore.GeoPoint(studentLocation.latitude, studentLocation.longitude),
-        checkOutTime: null, // Initialize checkout time as null
-        distance: distance,
-        status: isWithinRadius ? 'verified' : 'failed_location',
-        isGpsVerified: isWithinRadius,
-        deviceInfo: {
-          userAgent: navigator.userAgent,
-          platform: navigator.platform
-        },
-        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-      });
-    
-    showToast(isWithinRadius ? 
-      'Attendance recorded successfully!' : 
-      'Attendance recorded but you are outside the allowed radius.', 
-      isWithinRadius ? 'success' : 'warning');
-    
-    showView('active-sessions');
-    
-    // Refresh session list to update UI
-    setTimeout(() => loadActiveSessions(), 500);
-  } catch (error) {
-    console.error('Attendance check-in error:', error);
-    
-    let errorMessage = 'Failed to check in';
-    if (error.code === 1) {
-      errorMessage = 'Location permission denied. You must allow location access to check in.';
-    } else if (error.code === 2) {
-      errorMessage = 'Could not determine your location. Please ensure GPS is enabled and try again.';
+    const sessionLocation = sessionData.location;
+
+    if (!sessionLocation || typeof sessionLocation.lat !== 'number' || typeof sessionLocation.lng !== 'number' || typeof sessionLocation.radius !== 'number') {
+        throw new Error('Session location data is invalid or missing.');
     }
-    
-    showToast(errorMessage, 'error');
+
+    // 2. Get Current GPS Location
+    const currentPosition = await getCurrentPosition();
+    const currentLat = currentPosition.coords.latitude;
+    const currentLng = currentPosition.coords.longitude;
+
+    // 3. Verify GPS Location
+    const distance = calculateDistance(
+        { lat: currentLat, lng: currentLng },
+        { lat: sessionLocation.lat, lng: sessionLocation.lng }
+    );
+
+    console.log(`Checking attendance for session ${sessionId}. Distance: ${distance}m, Required Radius: ${sessionLocation.radius}m`);
+
+    if (distance > sessionLocation.radius) {
+        showToast(`Check-in failed: You are too far from the required location (${distance.toFixed(0)}m away, max ${sessionLocation.radius}m allowed).`, 'error', 7000);
+        hideLoading();
+        return;
+    }
+
+    // 4. Mark Attendance
+    const attendanceData = {
+        studentUid: app.currentUser.uid,
+        studentName: app.userProfile.displayName || 'Unknown Student',
+        status: 'present',
+        checkInTime: firebaseServices.firebase.firestore.FieldValue.serverTimestamp(),
+        verificationMethod: 'gps',
+        checkInLocation: {
+            lat: currentLat,
+            lng: currentLng,
+            accuracy: currentPosition.coords.accuracy
+        }
+    };
+
+    // Use the initialized db service
+    await db.collection('classes').doc(classId).collection('sessions').doc(sessionId)
+              .collection('attendance').doc(app.currentUser.uid).set(attendanceData, { merge: true }); // Use UID as doc ID
+
+    console.log('Attendance marked successfully for student:', app.currentUser.uid, 'in session:', sessionId);
+    showToast('Checked in successfully!', 'success');
+
+    // Update UI for this specific session card
+    updateAttendanceStatusUI(classId, sessionId, 'present');
+
+  } catch (error) {
+    console.error('Error checking in:', error);
+    showToast(`Check-in failed: ${error.message}`, 'error');
+  } finally {
     hideLoading();
   }
 }
 
-/**
- * Handle student early checkout from a session
- * @param {string} sessionId - ID of the session to check out from
- */
 async function handleAttendanceCheckOut(sessionId) {
-  if (!confirm("Are you sure you want to check out early from this session?")) {
-    return;
-  }
-
-  showLoading();
-  
-  try {
-    const attendanceRef = firebase.firestore()
-      .collection('sessions')
-      .doc(sessionId)
-      .collection('attendance')
-      .doc(app.currentUser.uid);
-    
-    const attendanceDoc = await attendanceRef.get();
-    
-    if (!attendanceDoc.exists) {
-      throw new Error("You haven't checked in to this session yet");
-    }
-    
-    // Update attendance record with checkout time
-    await attendanceRef.update({
-      checkOutTime: firebase.firestore.FieldValue.serverTimestamp(),
-      status: 'checked_out_early_before_verification',
-      lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    
-    showToast('Successfully checked out from the session', 'success');
-    
-    // Refresh sessions
-    await loadActiveSessions();
-    
-  } catch (error) {
-    console.error('Checkout error:', error);
-    showToast('Failed to check out: ' + error.message, 'error');
-  } finally {
-    hideLoading();
-  }
+  // Placeholder for check-out functionality
+  // This might involve updating the attendance record with a checkOutTime
+  // Or simply be implicit when the session ends.
+  // For now, we might not need an explicit student check-out button.
+  console.log(`Attempting check-out for session ${sessionId} (Not implemented yet)`);
+  showToast('Check-out functionality not yet implemented.', 'info');
 }
 
 function renderSessions(sessions) {
@@ -1205,20 +1215,20 @@ function renderSessions(sessions) {
             <div class="card h-100 border-success">
               <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
                 <div>Active Session</div>
-                <span class="badge bg-light text-dark">${session.startTimeFormatted}</span>
+                <span class="badge bg-light text-dark">${session.startTime ? new Date(session.startTime.toDate()).toLocaleString() : 'N/A'}</span>
               </div>
               <div class="card-body">
-                <h5 class="card-title">${session.className}</h5>
+                <h5 class="card-title">${session.name}</h5>
                 <p class="card-text">
-                  <strong>Session ID:</strong> <span class="badge bg-secondary">${session.sessionId}</span><br>
+                  <strong>Session ID:</strong> <span class="badge bg-secondary">${session.id}</span><br>
                   <strong>Class ID:</strong> <span class="badge bg-secondary">${session.classId}</span><br>
-                  <strong>Radius:</strong> ${session.radius} meters<br>
-                  <strong>Attendance:</strong> <span class="attendance-count" data-session-id="${session.sessionId}">Loading...</span>
+                  <strong>Radius:</strong> ${session.location ? session.location.radius + ' meters' : 'N/A'}<br>
+                  <strong>Attendance:</strong> <span class="attendance-count" data-session-id="${session.id}">Loading...</span>
                 </p>
               </div>
               <div class="card-footer">
-                <button class="btn btn-danger btn-sm end-session-btn" data-session-id="${session.sessionId}">End Session</button>
-                <button class="btn btn-info btn-sm view-attendance-btn" data-session-id="${session.sessionId}">View Attendance</button>
+                <button class="btn btn-danger btn-sm end-session-btn" data-session-id="${session.id}">End Session</button>
+                <button class="btn btn-info btn-sm view-attendance-btn" data-session-id="${session.id}">View Attendance</button>
               </div>
             </div>
           </div>
@@ -1236,19 +1246,19 @@ function renderSessions(sessions) {
             <div class="card h-100">
               <div class="card-header d-flex justify-content-between align-items-center">
                 <div>Ended Session</div>
-                <span class="badge bg-secondary">${session.startTimeFormatted}</span>
+                <span class="badge bg-secondary">${session.startTime ? new Date(session.startTime.toDate()).toLocaleString() : 'N/A'}</span>
               </div>
               <div class="card-body">
-                <h5 class="card-title">${session.className}</h5>
+                <h5 class="card-title">${session.name}</h5>
                 <p class="card-text">
-                  <strong>Session ID:</strong> <span class="badge bg-secondary">${session.sessionId}</span><br>
+                  <strong>Session ID:</strong> <span class="badge bg-secondary">${session.id}</span><br>
                   <strong>Class ID:</strong> <span class="badge bg-secondary">${session.classId}</span><br>
-                  <strong>Duration:</strong> ${calculateDuration(session.startTime, session.endTime)}<br>
-                  <strong>Attendance:</strong> <span class="attendance-count" data-session-id="${session.sessionId}">Loading...</span>
+                  <strong>Duration:</strong> ${session.endTime ? new Date(session.endTime.toDate()).toLocaleString() : 'N/A'}<br>
+                  <strong>Attendance:</strong> <span class="attendance-count" data-session-id="${session.id}">Loading...</span>
                 </p>
               </div>
               <div class="card-footer">
-                <button class="btn btn-info btn-sm view-attendance-btn" data-session-id="${session.sessionId}">View Attendance</button>
+                <button class="btn btn-info btn-sm view-attendance-btn" data-session-id="${session.id}">View Attendance</button>
               </div>
             </div>
           </div>
@@ -1278,11 +1288,7 @@ function renderSessions(sessions) {
   container.querySelectorAll('.attendance-count').forEach(async (span) => {
     const sessionId = span.dataset.sessionId;
     try {
-      const snapshot = await firebase.firestore()
-        .collection('sessions')
-        .doc(sessionId)
-        .collection('attendance')
-        .get();
+      const snapshot = await db.collection('classes').doc(sessionId).collection('sessions').doc(sessionId).collection('attendance').get();
       
       span.textContent = `${snapshot.size} students`;
     } catch (error) {
@@ -1311,12 +1317,12 @@ function renderStudentSessions(sessions) {
         <div class="col">
           <div class="card h-100 ${session.hasAttended ? 'border-success' : ''}">
             <div class="card-header ${session.hasAttended ? (session.attendanceStatus === 'checked_out_early_before_verification' ? 'bg-warning' : 'bg-success text-white') : ''}">
-              ${session.className} ${session.hasAttended ? (session.attendanceStatus === 'checked_out_early_before_verification' ? '(Checked Out Early)' : '(Attended)') : ''}
+              ${session.name} ${session.hasAttended ? (session.attendanceStatus === 'checked_out_early_before_verification' ? '(Checked Out Early)' : '(Attended)') : ''}
             </div>
             <div class="card-body">
-              <h5 class="card-title">Started: ${session.startTimeFormatted}</h5>
+              <h5 class="card-title">Started: ${session.startTime ? new Date(session.startTime.toDate()).toLocaleString() : 'N/A'}</h5>
               <p class="card-text">
-                <strong>Session ID:</strong> <span class="badge bg-secondary">${session.sessionId}</span><br>
+                <strong>Session ID:</strong> <span class="badge bg-secondary">${session.id}</span><br>
                 <strong>Class ID:</strong> <span class="badge bg-secondary">${session.classId}</span><br>
                 <strong>Teacher:</strong> ${session.teacherName || 'Unknown'}<br>
                 ${session.hasAttended 
@@ -1337,8 +1343,8 @@ function renderStudentSessions(sessions) {
             <div class="card-footer">
               ${!session.hasAttended 
                 ? `<button class="btn btn-primary btn-sm check-in-btn" 
-                     data-session-id="${session.sessionId}"
-                     data-class-name="${session.className}">
+                     data-session-id="${session.id}"
+                     data-class-name="${session.name}">
                      Check In
                    </button>`
                 : (session.attendanceStatus !== 'checked_out_early_before_verification'
@@ -1346,14 +1352,13 @@ function renderStudentSessions(sessions) {
                          <button class="btn btn-success btn-sm me-2" disabled>
                            Checked In ✓
                          </button>
-                         <button class="btn btn-warning btn-sm checkout-btn" data-session-id="${session.sessionId}">
+                         <button class="btn btn-warning btn-sm checkout-btn" data-session-id="${session.id}">
                            Check Out Early
                          </button>
                        </div>`
                     : `<button class="btn btn-secondary btn-sm" disabled>
                          Checked Out ✓
-                       </button>`
-                  )
+                       </button>`)
               }
             </div>
           </div>
@@ -1407,14 +1412,15 @@ function getCurrentPosition() {
 // Calculate distance between two points using Haversine formula
 function calculateDistance(point1, point2) {
   const R = 6371e3; // Earth's radius in meters
-  const φ1 = point1.latitude * Math.PI / 180;
-  const φ2 = point2.latitude * Math.PI / 180;
-  const Δφ = (point2.latitude - point1.latitude) * Math.PI / 180;
-  const Δλ = (point2.longitude - point1.longitude) * Math.PI / 180;
+  const φ1 = point1.lat * Math.PI / 180;
+  const φ2 = point2.lat * Math.PI / 180;
+  const Δφ = (point2.lat - point1.lat) * Math.PI / 180;
+  const Δλ = (point2.lng - point1.lng) * Math.PI / 180;
   
   const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
           Math.cos(φ1) * Math.cos(φ2) *
           Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
   
   return R * c; // Distance in meters
@@ -1445,147 +1451,203 @@ function calculateDuration(startTime, endTime) {
 
 // End a session
 async function endSession(sessionId) {
-  if (!confirm('Are you sure you want to end this session? Students will no longer be able to check in.')) {
-    return;
+  if (!confirm('Are you sure you want to end this session? Students can no longer check in.')) {
+      return;
   }
   
   showLoading();
   
   try {
-    await firebase.firestore().collection('sessions').doc(sessionId).update({
-      endTime: firebase.firestore.FieldValue.serverTimestamp(),
-      status: 'ended'
-    });
-    
-    showToast('Session ended successfully', 'success');
-    loadSessions(); // Refresh the sessions list
+      // Use the initialized db service
+      await db.collection('classes').doc(sessionId).collection('sessions').doc(sessionId).update({
+          status: 'ended',
+          endTime: firebaseServices.firebase.firestore.FieldValue.serverTimestamp() // Optionally update end time to now
+      });
+      showToast('Session ended.', 'success');
+      loadSessions(); // Refresh the teacher's session list
+      // Students' active session list will update automatically on next load or refresh
   } catch (error) {
-    console.error('Error ending session:', error);
-    showToast('Failed to end session: ' + error.message, 'error');
-    hideLoading();
+      console.error('Error ending session:', error);
+      showToast(`Error ending session: ${error.message}`, 'error');
+  } finally {
+      hideLoading();
   }
 }
 
 // Show attendance for a session
 async function showAttendance(sessionId) {
-  showLoading();
-  
-  try {
-    // Get session details
-    const sessionDoc = await firebase.firestore().collection('sessions').doc(sessionId).get();
-    
-    if (!sessionDoc.exists) {
-      throw new Error('Session not found');
+    console.log(`Showing attendance for session ${sessionId}`);
+    showLoading();
+    const attendanceModal = new bootstrap.Modal(document.getElementById('attendanceModal'));
+    const modalTitle = document.getElementById('attendanceModalLabel');
+    const modalBody = document.getElementById('attendanceModalBody');
+
+    modalTitle.textContent = `Attendance for Session`;
+    modalBody.innerHTML = '<p>Loading attendance data...</p>'; // Placeholder
+    attendanceModal.show();
+
+    try {
+        // Use the initialized db service
+        const attendanceQuery = db.collection('classes').doc(sessionId).collection('sessions').doc(sessionId)
+                                .collection('attendance')
+                                .orderBy('checkInTime', 'asc'); // Order by check-in time
+
+        const snapshot = await attendanceQuery.get();
+        const attendanceRecords = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        if (attendanceRecords.length === 0) {
+            modalBody.innerHTML = '<p>No attendance records found for this session.</p>';
+        } else {
+            let tableHTML = `
+                <table class="table table-striped table-hover">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Status</th>
+                            <th>Check-in Time</th>
+                            <th>Verification</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            attendanceRecords.forEach(record => {
+                const checkInTime = record.checkInTime?.toDate ? record.checkInTime.toDate().toLocaleString() : 'N/A';
+                tableHTML += `
+                    <tr>
+                        <td>${record.studentName || record.studentUid}</td>
+                        <td><span class="badge bg-${record.status === 'present' ? 'success' : 'secondary'}">${record.status}</span></td>
+                        <td>${checkInTime}</td>
+                        <td>${record.verificationMethod || 'N/A'} ${record.verificationMethod === 'gps' ? `(~${record.checkInLocation?.accuracy?.toFixed(0)}m acc.)` : ''}</td>
+                    </tr>
+                `;
+            });
+            tableHTML += `
+                    </tbody>
+                </table>
+            `;
+            modalBody.innerHTML = tableHTML;
+        }
+        console.log('Attendance records loaded:', attendanceRecords);
+
+    } catch (error) {
+        console.error('Error loading attendance data:', error);
+        modalBody.innerHTML = `<p class="text-danger">Error loading attendance data: ${error.message}</p>`;
+        showToast('Failed to load attendance data.', 'error');
+    } finally {
+        hideLoading();
     }
-    
-    const sessionData = sessionDoc.data();
-    
-    // Get class details
-    const classDoc = await firebase.firestore().collection('classes').doc(sessionData.classId).get();
-    const className = classDoc.exists ? classDoc.data().name : 'Unknown Class';
-    
-    // Get all students in the class
-    const studentsSnapshot = await firebase.firestore()
-      .collection(`classes/${sessionData.classId}/students`)
-      .get();
-    
-    const allStudentIds = studentsSnapshot.docs.map(doc => doc.id);
-    
-    // Get attendance records for this session
-    const attendanceSnapshot = await firebase.firestore()
-      .collection(`sessions/${sessionId}/attendance`)
-      .get();
-    
-    const attendanceMap = {};
-    attendanceSnapshot.docs.forEach(doc => {
-      attendanceMap[doc.id] = doc.data();
-    });
-    
-    // Get user details for all students
-    const userDetailsPromises = allStudentIds.map(async (studentId) => {
-      try {
-        const userDoc = await firebase.firestore().collection('users').doc(studentId).get();
-        return userDoc.exists ? { id: studentId, ...userDoc.data() } : { id: studentId, displayName: 'Unknown Student' };
-      } catch (e) {
-        console.error(`Error fetching details for student ${studentId}:`, e);
-        return { id: studentId, displayName: 'Error loading name' };
-      }
-    });
-    
-    const userDetails = await Promise.all(userDetailsPromises);
-    
-    // Build attendance list with status
-    const attendanceList = userDetails.map(user => {
-      const attendance = attendanceMap[user.id];
-      return {
-        id: user.id,
-        name: user.displayName,
-        email: user.email,
-        status: attendance ? attendance.status : 'absent',
-        checkInTime: attendance && attendance.checkInTime ? attendance.checkInTime.toDate().toLocaleString() : 'N/A',
-        distance: attendance ? attendance.distance : null
-      };
-    });
-    
-    // Set up the attendance view
-    const container = document.getElementById('attendance-container');
-    
-    // Count statuses
-    const verified = attendanceList.filter(a => a.status === 'verified').length;
-    const failed = attendanceList.filter(a => a.status === 'failed_location').length;
-    const absent = attendanceList.filter(a => a.status === 'absent').length;
-    
-    let html = `
-      <div class="mb-4">
-        <h3>${className}</h3>
-        <p>
-          <strong>Session started:</strong> ${sessionData.startTime ? new Date(sessionData.startTime.toDate()).toLocaleString() : 'N/A'}<br>
-          <strong>Session status:</strong> ${sessionData.status === 'active' ? 'Active' : 'Ended'}<br>
-          <strong>Attendance summary:</strong> Present: ${verified + failed}, Verified: ${verified}, Failed location: ${failed}, Absent: ${absent}
-        </p>
-      </div>
-      
-      <div class="table-responsive">
-        <table class="table table-striped table-hover">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Status</th>
-              <th>Check-in Time</th>
-              <th>Distance</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${attendanceList.map(a => `
-              <tr class="${a.status === 'verified' ? 'table-success' : a.status === 'failed_location' ? 'table-warning' : 'table-danger'}">
-                <td>${a.name}</td>
-                <td>${a.email || 'N/A'}</td>
-                <td>
-                  ${a.status === 'verified' 
-                    ? '<span class="badge bg-success">Verified</span>' 
-                    : a.status === 'failed_location' 
-                      ? '<span class="badge bg-warning text-dark">Outside radius</span>' 
-                      : '<span class="badge bg-danger">Absent</span>'}
-                </td>
-                <td>${a.checkInTime}</td>
-                <td>${a.distance !== null ? a.distance.toFixed(1) + ' m' : 'N/A'}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-    `;
-    
-    container.innerHTML = html;
-    
-    // Show the attendance view
-    showView('attendance');
-    hideLoading();
-  } catch (error) {
-    console.error('Error loading attendance:', error);
-    showToast('Failed to load attendance data: ' + error.message, 'error');
-    hideLoading();
+}
+
+async function checkStudentAttendanceStatus(classId, sessionId) {
+    if (!app.currentUser) return;
+
+    try {
+        // Use the initialized db service
+        const attendanceDoc = await db.collection('classes').doc(classId)
+                                    .collection('sessions').doc(sessionId)
+                                    .collection('attendance').doc(app.currentUser.uid)
+                                    .get();
+
+        if (attendanceDoc.exists) {
+            const attendanceData = attendanceDoc.data();
+            updateAttendanceStatusUI(classId, sessionId, attendanceData.status);
+        } else {
+            updateAttendanceStatusUI(classId, sessionId, 'absent'); // Default to absent if no record
+        }
+    } catch (error) {
+        console.error(`Error checking attendance status for session ${sessionId}:`, error);
+        // Don't show toast, just update UI to indicate error or unknown state?
+        updateAttendanceStatusUI(classId, sessionId, 'error');
+    }
+}
+
+function updateAttendanceStatusUI(classId, sessionId, status) {
+    const sessionCard = document.querySelector(`.session-card[data-session-id="${sessionId}"][data-class-id="${classId}"]`);
+    if (!sessionCard) return;
+
+    const statusElement = sessionCard.querySelector('.attendance-status-badge');
+    const checkInButton = sessionCard.querySelector('.check-in-btn');
+
+    if (!statusElement || !checkInButton) return;
+
+    statusElement.classList.remove('bg-success', 'bg-secondary', 'bg-warning', 'bg-danger'); // Remove existing statuses
+    checkInButton.disabled = false;
+    checkInButton.textContent = 'Check In';
+
+    switch (status) {
+        case 'present':
+            statusElement.textContent = 'Present';
+            statusElement.classList.add('bg-success');
+            checkInButton.disabled = true; // Already checked in
+            checkInButton.textContent = 'Checked In';
+            break;
+        case 'absent':
+            statusElement.textContent = 'Absent';
+            statusElement.classList.add('bg-secondary');
+            break;
+        case 'late': // If you implement late status
+            statusElement.textContent = 'Late';
+            statusElement.classList.add('bg-warning');
+            checkInButton.disabled = true; // Or allow check-in if late is acceptable?
+            checkInButton.textContent = 'Checked In (Late)';
+            break;
+        case 'error':
+             statusElement.textContent = 'Status Error';
+             statusElement.classList.add('bg-danger');
+             checkInButton.disabled = true; // Disable if status unknown
+             break;
+        default:
+            statusElement.textContent = 'Unknown';
+            statusElement.classList.add('bg-secondary');
+            break;
+    }
+    statusElement.style.display = 'inline-block'; // Make sure it's visible
+}
+
+// --- Data Visualization Functions ---
+
+// Initialize data visualization when entering admin views
+function initializeDataVisualization() {
+  console.log('Initializing data visualization');
+  
+  if (!app.visualization.initialized) {
+    // Initialize charts if not already done
+    initializeCharts();
+    app.visualization.initialized = true;
+    console.log('Charts initialized');
+  }
+  
+  if (!app.visualization.listenersActive) {
+    // Start real-time data listeners
+    startRealTimeDataListeners();
+    app.visualization.listenersActive = true;
+    console.log('Real-time data listeners active');
+  }
+  
+  // Update UI elements to show visualization is active
+  const visualizationStatusEl = document.getElementById('visualization-status');
+  if (visualizationStatusEl) {
+    visualizationStatusEl.textContent = 'Real-time data visualization active';
+    visualizationStatusEl.className = 'text-success';
+  }
+}
+
+// Clean up data visualization when leaving admin views
+function cleanupDataVisualization() {
+  console.log('Cleaning up data visualization');
+  
+  if (app.visualization.listenersActive) {
+    // Stop real-time data listeners to prevent memory leaks and unnecessary updates
+    stopRealTimeDataListeners();
+    app.visualization.listenersActive = false;
+    console.log('Real-time data listeners stopped');
+  }
+  
+  // Update UI elements to show visualization is inactive
+  const visualizationStatusEl = document.getElementById('visualization-status');
+  if (visualizationStatusEl) {
+    visualizationStatusEl.textContent = 'Real-time data visualization inactive';
+    visualizationStatusEl.className = 'text-secondary';
   }
 }
 
@@ -1662,6 +1724,15 @@ function populateClassDropdown(classes) {
     <option value="${cls.classId}">${cls.name}</option>
   `).join('');
 }
+
+// Register cleanup on page unload
+window.addEventListener('beforeunload', function() {
+  // Clean up Firebase listeners
+  if (app.visualization.listenersActive) {
+    stopRealTimeDataListeners();
+    app.visualization.listenersActive = false;
+  }
+});
 
 // Initialize app when document is ready
 document.addEventListener('DOMContentLoaded', initApp);
